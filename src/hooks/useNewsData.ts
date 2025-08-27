@@ -132,54 +132,75 @@ export const useNewsData = () => {
     return [];
   };
 
-  const fetchAllNews = useCallback(async () => {
+  const fetchAllNews = useCallback(async (isInitialLoad = true) => {
     console.log('Starting to fetch all news...');
     setLoading(true);
     try {
       const allArticles: NewsArticle[] = [];
       const enabledSources = NEWS_SOURCES.filter(source => source.enabled !== false);
       
+      // Calculate time threshold - last 24 hours for initial load, or since last update
+      const now = new Date();
+      const timeThreshold = isInitialLoad 
+        ? new Date(now.getTime() - 24 * 60 * 60 * 1000) // Last 24 hours
+        : new Date(now.getTime() - 2 * 60 * 60 * 1000); // Last 2 hours for refreshes
+      
       console.log(`Fetching from ${enabledSources.length} enabled sources`);
+      console.log(`Time threshold: ${timeThreshold.toISOString()} (${isInitialLoad ? 'last 24h' : 'last 2h'})`);
       
-      // Add some demo articles first for immediate display
-      const demoArticles: NewsArticle[] = [
-        {
-          id: 'demo-1',
-          title: 'Welcome to News Veille Pro - Your Professional News Aggregator',
-          description: 'News Veille Pro is fetching your RSS feeds. This demo article shows how articles will appear once feeds are loaded. Click on articles to mark as read, add to favorites, or use AI features.',
-          link: 'https://example.com',
-          pubDate: new Date().toISOString(),
-          source: 'News Veille Pro',
-          category: 'Demo',
-          isRead: false,
-        },
-        {
-          id: 'demo-2',
-          title: 'RSS Feeds Loading - Multiple CORS Proxies Being Tested',
-          description: 'The app is trying multiple CORS proxy services to fetch your RSS feeds. Check the browser console for detailed logs of the fetching process.',
-          link: 'https://example.com',
-          pubDate: new Date(Date.now() - 60000).toISOString(),
-          source: 'System',
-          category: 'Technical',
-          isRead: false,
-        }
-      ];
-      
-      allArticles.push(...demoArticles);
+      // Add some demo articles first for immediate display (only on initial load)
+      if (isInitialLoad) {
+        const demoArticles: NewsArticle[] = [
+          {
+            id: 'demo-1',
+            title: 'Welcome to News Veille Pro - Fetching Last 24 Hours of News',
+            description: 'News Veille Pro is now fetching articles from the last 24 hours. The app will then refresh at your chosen interval to get new articles. Click on articles to mark as read, add to favorites, or use AI features.',
+            link: 'https://example.com',
+            pubDate: new Date().toISOString(),
+            source: 'News Veille Pro',
+            category: 'Demo',
+            isRead: false,
+          },
+          {
+            id: 'demo-2',
+            title: 'Time-Based Filtering Active - Only Recent Articles Loaded',
+            description: 'The app filters articles to show only those from the last 24 hours on initial load, then refreshes with recent articles based on your settings. Check the browser console for detailed logs.',
+            link: 'https://example.com',
+            pubDate: new Date(Date.now() - 30 * 60 * 1000).toISOString(), // 30 minutes ago
+            source: 'System',
+            category: 'Technical',
+            isRead: false,
+          }
+        ];
+        
+        allArticles.push(...demoArticles);
+      }
       
       for (const source of enabledSources) {
         console.log(`Fetching from ${source.name}...`);
         try {
           const sourceArticles = await parseRSSFeed(source);
-          console.log(`Got ${sourceArticles.length} articles from ${source.name}`);
-          allArticles.push(...sourceArticles);
+          console.log(`Got ${sourceArticles.length} total articles from ${source.name}`);
+          
+          // Filter articles by time threshold
+          const recentArticles = sourceArticles.filter(article => {
+            const articleDate = new Date(article.pubDate);
+            const isRecent = articleDate >= timeThreshold;
+            if (!isRecent) {
+              console.log(`Filtering out old article: ${article.title} (${articleDate.toISOString()})`);
+            }
+            return isRecent;
+          });
+          
+          console.log(`Filtered to ${recentArticles.length} recent articles from ${source.name}`);
+          allArticles.push(...recentArticles);
         } catch (error) {
           console.error(`Failed to fetch from ${source.name}:`, error);
           // Continue with other sources even if one fails
         }
       }
 
-      console.log(`Total articles fetched: ${allArticles.length}`);
+      console.log(`Total recent articles fetched: ${allArticles.length}`);
 
       // Sort by date (newest first)
       allArticles.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
@@ -192,7 +213,26 @@ export const useNewsData = () => {
       }));
 
       console.log(`Setting ${articlesWithReadStatus.length} articles with read status`);
-      setArticles(articlesWithReadStatus);
+      
+      // On initial load, replace all articles. On refresh, merge with existing ones
+      if (isInitialLoad) {
+        setArticles(articlesWithReadStatus);
+      } else {
+        // Merge new articles with existing ones, avoiding duplicates
+        setArticles(prevArticles => {
+          const existingLinks = new Set(prevArticles.map(a => a.link));
+          const newArticles = articlesWithReadStatus.filter(a => !existingLinks.has(a.link));
+          
+          const mergedArticles = [...newArticles, ...prevArticles];
+          // Keep only articles from last 7 days to prevent storage bloat
+          const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          const filteredArticles = mergedArticles.filter(a => new Date(a.pubDate) >= sevenDaysAgo);
+          
+          console.log(`Added ${newArticles.length} new articles, total: ${filteredArticles.length}`);
+          return filteredArticles.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
+        });
+      }
+      
       setLastUpdate(new Date());
     } catch (error) {
       console.error('Error fetching news:', error);
@@ -250,10 +290,15 @@ export const useNewsData = () => {
   }, [articles]);
 
   useEffect(() => {
-    fetchAllNews();
+    // Initial load - fetch last 24 hours
+    fetchAllNews(true);
     
-    // Set up auto-refresh every 15 minutes
-    const interval = setInterval(fetchAllNews, 15 * 60 * 1000);
+    // Set up auto-refresh based on user settings (default 15 minutes)
+    const settings = JSON.parse(localStorage.getItem('newsVeilleSettings') || '{}');
+    const refreshInterval = (settings.refreshInterval || 15) * 60 * 1000;
+    console.log(`Setting up auto-refresh every ${settings.refreshInterval || 15} minutes`);
+    
+    const interval = setInterval(() => fetchAllNews(false), refreshInterval);
     return () => clearInterval(interval);
   }, [fetchAllNews]);
 
@@ -262,7 +307,7 @@ export const useNewsData = () => {
     loading,
     lastUpdate,
     markAsRead,
-    refreshNews: fetchAllNews,
+    refreshNews: () => fetchAllNews(false), // Manual refresh gets recent articles
     getReadingStats,
   };
 };

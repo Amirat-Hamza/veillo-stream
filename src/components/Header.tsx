@@ -53,7 +53,8 @@ export const Header = ({
           <div className="flex items-center gap-2">
             {lastUpdate && (
               <div className="hidden md:block text-xs text-muted-foreground">
-                Last update: {format(lastUpdate, 'HH:mm')}
+                <div>Last update: {format(lastUpdate, 'HH:mm')}</div>
+                <div className="text-xs opacity-75">📅 24h articles loaded</div>
               </div>
             )}
 
