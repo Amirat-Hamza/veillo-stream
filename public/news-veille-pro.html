@@ -1,0 +1,2321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>News Veille Pro - Professional News Aggregator</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/crypto-js@4.1.1/crypto-js.min.js"></script>
+    <style>
+        /* Custom CSS Variables for Dark/Light Theme */
+        :root {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --bg-card: #ffffff;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --border-color: #e2e8f0;
+            --accent-color: #3b82f6;
+            --accent-hover: #2563eb;
+            --success-color: #10b981;
+            --warning-color: #f59e0b;
+            --error-color: #ef4444;
+        }
+
+        [data-theme="dark"] {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-card: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #cbd5e1;
+            --border-color: #475569;
+            --accent-color: #60a5fa;
+            --accent-hover: #3b82f6;
+        }
+
+        * {
+            transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+        }
+
+        body {
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        .card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transform: translateY(-2px);
+        }
+
+        .btn {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background-color: var(--accent-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--accent-hover);
+        }
+
+        .btn-secondary {
+            background-color: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--border-color);
+        }
+
+        .trending-badge {
+            background: linear-gradient(45deg, #ff6b6b, #feca57);
+            color: white;
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 12px;
+            font-weight: bold;
+        }
+
+        .sentiment-positive { color: var(--success-color); }
+        .sentiment-negative { color: var(--error-color); }
+        .sentiment-neutral { color: var(--text-secondary); }
+
+        .read-article {
+            opacity: 0.7;
+            background-color: var(--bg-secondary);
+        }
+
+        .favorite-article {
+            border-left: 4px solid var(--warning-color);
+        }
+
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: var(--bg-card);
+            border-radius: 8px;
+            padding: 2rem;
+            max-width: 90%;
+            max-height: 90%;
+            overflow-y: auto;
+        }
+
+        .notification-sound {
+            position: absolute;
+            visibility: hidden;
+        }
+
+        /* Keyboard navigation hints */
+        .keyboard-hint {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 0.5rem;
+            font-size: 0.75rem;
+            opacity: 0.8;
+        }
+
+        /* Loading animations */
+        .loading-spinner {
+            border: 2px solid var(--border-color);
+            border-top: 2px solid var(--accent-color);
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .desktop-only { display: none; }
+            .card { margin-bottom: 1rem; }
+        }
+
+        /* Word cloud styles */
+        .word-cloud {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .word-cloud span {
+            padding: 0.25rem 0.5rem;
+            background: var(--bg-secondary);
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        /* Cluster styles */
+        .cluster-group {
+            border: 2px dashed var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+
+        .cluster-header {
+            font-weight: bold;
+            margin-bottom: 0.5rem;
+            color: var(--accent-color);
+        }
+    </style>
+</head>
+<body>
+    <!-- ===== README SECTION ===== -->
+    <!--
+    NEWS VEILLE PRO - Professional News Aggregator
+
+    SETUP INSTRUCTIONS:
+
+    1. RUN AS LOCAL WEB APP:
+       - Save this file as 'news-veille-pro.html'
+       - Open in modern browser (Chrome, Firefox, Safari, Edge)
+       - Allow notifications when prompted
+       - Grant microphone permission for voice features (optional)
+
+    2. PACKAGE WITH ELECTRON:
+       - npm install electron --save-dev
+       - Create main.js with: 
+         const { app, BrowserWindow, Tray, nativeImage } = require('electron');
+         // See ELECTRON_MAIN_JS section below for full implementation
+       - package.json scripts: "electron": "electron main.js"
+       - For system tray: implement updateTrayBadge(count) function
+       - Auto-start: app.setLoginItemSettings({openAtLogin: true})
+
+    3. PACKAGE WITH TAURI:
+       - cargo install tauri-cli
+       - tauri init
+       - Copy this HTML into src-tauri/tauri.conf.json
+       - Use tauri build for production
+
+    4. PROVIDE API KEYS:
+       - OpenAI: Set OPENAI_API_KEY in settings
+       - HuggingFace: Set HUGGINGFACE_API_KEY in settings
+       - Keys are stored encrypted in localStorage
+
+    5. EXPORT/IMPORT DATA:
+       - Use Settings > Export Data for JSON backup
+       - Import on new device: Settings > Import Data
+       - Manual sync between devices via exported JSON files
+
+    FEATURES:
+    - Offline-first RSS aggregation
+    - AI summaries & sentiment analysis
+    - Text-to-speech playback
+    - Trending article detection
+    - Multi-language support (EN/FR/AR)
+    - Keyboard shortcuts (j/k navigation, space for summary)
+    - Desktop notifications & sounds
+    - Advanced search & filtering
+    - Analytics dashboard
+    - Encryption with passphrase
+    -->
+    <div id="app">
+        <!-- Header -->
+        <header class="sticky top-0 z-50" style="background-color: var(--bg-card); border-bottom: 1px solid var(--border-color);">
+            <div class="container mx-auto px-4 py-3">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center space-x-4">
+                        <h1 class="text-2xl font-bold" style="color: var(--accent-color);">📰 News Veille Pro</h1>
+                        <div id="status-indicator" class="flex items-center space-x-2">
+                            <div class="loading-spinner" style="display: none;"></div>
+                            <span id="status-text" class="text-sm" style="color: var(--text-secondary);">Ready</span>
+                        </div>
+                        <div id="unread-badge" class="px-2 py-1 rounded-full text-xs font-bold" style="background-color: var(--accent-color); color: white; display: none;">0</div>
+                    </div>
+
+                    <div class="flex items-center space-x-2">
+                        <!-- Language Selector -->
+                        <select id="language-selector" class="btn btn-secondary text-sm">
+                            <option value="en">🇺🇸 EN</option>
+                            <option value="fr">🇫🇷 FR</option>
+                            <option value="ar">🇸🇦 AR</option>
+                        </select>
+
+                        <!-- Theme Toggle -->
+                        <button id="theme-toggle" class="btn btn-secondary">🌓</button>
+
+                        <!-- Settings -->
+                        <button id="settings-btn" class="btn btn-secondary">⚙️</button>
+
+                        <!-- Refresh -->
+                        <button id="refresh-btn" class="btn btn-primary">🔄</button>
+                    </div>
+                </div>
+
+                <!-- Navigation Tabs -->
+                <nav class="mt-4">
+                    <div class="flex space-x-1">
+                        <button class="nav-tab active" data-view="articles">📄 <span data-i18n="articles">Articles</span></button>
+                        <button class="nav-tab" data-view="dashboard">📊 <span data-i18n="dashboard">Dashboard</span></button>
+                        <button class="nav-tab" data-view="favorites">⭐ <span data-i18n="favorites">Favorites</span></button>
+                        <button class="nav-tab" data-view="read-later">📌 <span data-i18n="readLater">Read Later</span></button>
+                        <button class="nav-tab" data-view="trending">🔥 <span data-i18n="trending">Trending</span></button>
+                    </div>
+                </nav>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <main class="container mx-auto px-4 py-6">
+            <!-- Articles View -->
+            <div id="articles-view" class="view active">
+                <!-- Search and Filters -->
+                <div class="card mb-6">
+                    <div class="flex flex-wrap gap-4 items-center">
+                        <input type="text" id="search-input" placeholder="🔍 Search articles..." class="flex-1 min-w-64 p-2 border rounded" style="border-color: var(--border-color); background-color: var(--bg-secondary);">
+                        
+                        <select id="source-filter" class="p-2 border rounded" style="border-color: var(--border-color); background-color: var(--bg-secondary);">
+                            <option value="all" data-i18n="allSources">All Sources</option>
+                        </select>
+                        
+                        <select id="sentiment-filter" class="p-2 border rounded" style="border-color: var(--border-color); background-color: var(--bg-secondary);">
+                            <option value="all" data-i18n="allSentiments">All Sentiments</option>
+                            <option value="positive" data-i18n="positive">Positive</option>
+                            <option value="neutral" data-i18n="neutral">Neutral</option>
+                            <option value="negative" data-i18n="negative">Negative</option>
+                        </select>
+                        
+                        <label class="flex items-center space-x-2">
+                            <input type="checkbox" id="unread-only-filter">
+                            <span data-i18n="unreadOnly">Unread Only</span>
+                        </label>
+                        
+                        <button id="batch-actions-btn" class="btn btn-secondary">📋 <span data-i18n="batchActions">Batch Actions</span></button>
+                    </div>
+                </div>
+
+                <!-- Articles Container -->
+                <div id="articles-container" class="grid gap-4">
+                    <!-- Articles will be inserted here -->
+                </div>
+            </div>
+
+            <!-- Dashboard View -->
+            <div id="dashboard-view" class="view" style="display: none;">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <!-- Stats Cards -->
+                    <div class="card">
+                        <h3 class="font-bold mb-2" data-i18n="readingStats">Reading Stats</h3>
+                        <div class="space-y-2">
+                            <div>📖 <span data-i18n="today">Today</span>: <span id="stats-today">0</span></div>
+                            <div>📅 <span data-i18n="thisMonth">This Month</span>: <span id="stats-month">0</span></div>
+                            <div>📊 <span data-i18n="thisYear">This Year</span>: <span id="stats-year">0</span></div>
+                        </div>
+                    </div>
+
+                    <!-- Top Sources -->
+                    <div class="card">
+                        <h3 class="font-bold mb-2" data-i18n="topSources">Top Sources</h3>
+                        <div id="top-sources-list"></div>
+                    </div>
+
+                    <!-- Word Cloud -->
+                    <div class="card">
+                        <h3 class="font-bold mb-2" data-i18n="trendingKeywords">Trending Keywords</h3>
+                        <div id="word-cloud" class="word-cloud"></div>
+                    </div>
+
+                    <!-- Charts -->
+                    <div class="card md:col-span-2">
+                        <h3 class="font-bold mb-2" data-i18n="readingChart">Reading Activity</h3>
+                        <canvas id="reading-chart" width="400" height="200"></canvas>
+                    </div>
+
+                    <!-- Sentiment Analysis -->
+                    <div class="card">
+                        <h3 class="font-bold mb-2" data-i18n="sentimentAnalysis">Sentiment Analysis</h3>
+                        <canvas id="sentiment-chart" width="300" height="300"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Other Views (Favorites, Read Later, Trending) -->
+            <div id="favorites-view" class="view" style="display: none;">
+                <h2 class="text-2xl font-bold mb-4" data-i18n="favoriteArticles">Favorite Articles</h2>
+                <div id="favorites-container" class="grid gap-4"></div>
+            </div>
+
+            <div id="read-later-view" class="view" style="display: none;">
+                <h2 class="text-2xl font-bold mb-4" data-i18n="readLaterArticles">Read Later Articles</h2>
+                <div id="read-later-container" class="grid gap-4"></div>
+            </div>
+
+            <div id="trending-view" class="view" style="display: none;">
+                <h2 class="text-2xl font-bold mb-4" data-i18n="trendingArticles">Trending Articles</h2>
+                <div id="trending-container" class="grid gap-4"></div>
+            </div>
+        </main>
+
+        <!-- Modals -->
+        <!-- Settings Modal -->
+        <div id="settings-modal" class="modal" style="display: none;">
+            <div class="modal-content w-full max-w-2xl">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold" data-i18n="settings">Settings</h2>
+                    <button id="close-settings" class="btn btn-secondary">✕</button>
+                </div>
+
+                <div class="space-y-6">
+                    <!-- RSS Sources -->
+                    <div>
+                        <h3 class="font-bold mb-2" data-i18n="rssSources">RSS Sources</h3>
+                        <div id="rss-sources-list" class="space-y-2"></div>
+                        <button id="add-source-btn" class="btn btn-primary mt-2">+ <span data-i18n="addSource">Add Source</span></button>
+                    </div>
+
+                    <!-- API Keys -->
+                    <div>
+                        <h3 class="font-bold mb-2" data-i18n="apiKeys">API Keys</h3>
+                        <div class="space-y-2">
+                            <input type="password" id="openai-key" placeholder="OpenAI API Key" class="w-full p-2 border rounded" style="border-color: var(--border-color); background-color: var(--bg-secondary);">
+                            <input type="password" id="huggingface-key" placeholder="HuggingFace API Key" class="w-full p-2 border rounded" style="border-color: var(--border-color); background-color: var(--bg-secondary);">
+                        </div>
+                    </div>
+
+                    <!-- Notifications -->
+                    <div>
+                        <h3 class="font-bold mb-2" data-i18n="notifications">Notifications</h3>
+                        <label class="flex items-center space-x-2">
+                            <input type="checkbox" id="sound-notifications">
+                            <span data-i18n="enableSounds">Enable notification sounds</span>
+                        </label>
+                        <div class="mt-2">
+                            <label data-i18n="dndSchedule">Do Not Disturb:</label>
+                            <input type="time" id="dnd-start" class="ml-2 p-1 border rounded" style="border-color: var(--border-color); background-color: var(--bg-secondary);">
+                            <span class="mx-2" data-i18n="to">to</span>
+                            <input type="time" id="dnd-end" class="p-1 border rounded" style="border-color: var(--border-color); background-color: var(--bg-secondary);">
+                        </div>
+                    </div>
+
+                    <!-- Data Management -->
+                    <div>
+                        <h3 class="font-bold mb-2" data-i18n="dataManagement">Data Management</h3>
+                        <div class="space-x-2">
+                            <button id="export-data-btn" class="btn btn-secondary">📤 <span data-i18n="exportData">Export Data</span></button>
+                            <button id="import-data-btn" class="btn btn-secondary">📥 <span data-i18n="importData">Import Data</span></button>
+                            <input type="file" id="import-file" style="display: none;" accept=".json">
+                        </div>
+                        
+                        <div class="mt-4">
+                            <label class="flex items-center space-x-2">
+                                <input type="checkbox" id="encryption-enabled">
+                                <span data-i18n="enableEncryption">Enable data encryption</span>
+                            </label>
+                            <input type="password" id="encryption-passphrase" placeholder="Encryption passphrase" class="w-full p-2 border rounded mt-2" style="border-color: var(--border-color); background-color: var(--bg-secondary); display: none;">
+                        </div>
+                    </div>
+
+                    <!-- Save Settings -->
+                    <button id="save-settings-btn" class="btn btn-primary w-full">💾 <span data-i18n="saveSettings">Save Settings</span></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Article Summary Modal -->
+        <div id="summary-modal" class="modal" style="display: none;">
+            <div class="modal-content w-full max-w-lg">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-bold" data-i18n="aiSummary">AI Summary</h2>
+                    <button id="close-summary" class="btn btn-secondary">✕</button>
+                </div>
+                <div id="summary-content" class="space-y-4">
+                    <div class="loading-spinner mx-auto" style="display: none;"></div>
+                    <div id="summary-text"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Batch Actions Modal -->
+        <div id="batch-modal" class="modal" style="display: none;">
+            <div class="modal-content w-full max-w-md">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-lg font-bold" data-i18n="batchActions">Batch Actions</h2>
+                    <button id="close-batch" class="btn btn-secondary">✕</button>
+                </div>
+                <div class="space-y-4">
+                    <button id="batch-mark-read" class="btn btn-primary w-full">✅ <span data-i18n="markAllRead">Mark Selected as Read</span></button>
+                    <button id="batch-add-favorite" class="btn btn-primary w-full">⭐ <span data-i18n="addToFavorites">Add to Favorites</span></button>
+                    <button id="batch-read-later" class="btn btn-primary w-full">📌 <span data-i18n="addToReadLater">Add to Read Later</span></button>
+                    <input type="text" id="batch-tag-input" placeholder="Add tag to selected..." class="w-full p-2 border rounded" style="border-color: var(--border-color); background-color: var(--bg-secondary);">
+                    <button id="batch-add-tag" class="btn btn-primary w-full">🏷️ <span data-i18n="addTag">Add Tag</span></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Onboarding Tour -->
+        <div id="onboarding-modal" class="modal" style="display: none;">
+            <div class="modal-content w-full max-w-lg">
+                <div class="text-center">
+                    <h2 class="text-2xl font-bold mb-4" data-i18n="welcomeToNewsVeille">Welcome to News Veille Pro!</h2>
+                    <div id="tour-content" class="space-y-4">
+                        <p data-i18n="tourIntro">Your professional news aggregation tool with AI-powered features.</p>
+                        <div class="space-y-2 text-left">
+                            <div>🔍 <span data-i18n="tourSearch">Search and filter articles</span></div>
+                            <div>🤖 <span data-i18n="tourAI">AI summaries and sentiment analysis</span></div>
+                            <div>📊 <span data-i18n="tourDashboard">Analytics dashboard</span></div>
+                            <div>⌨️ <span data-i18n="tourKeyboard">Keyboard shortcuts: j/k navigation, space for summary</span></div>
+                            <div>🔄 <span data-i18n="tourSync">Export/import for device sync</span></div>
+                        </div>
+                    </div>
+                    <button id="start-tour-btn" class="btn btn-primary mt-4">🚀 <span data-i18n="startTour">Start Using</span></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Keyboard Shortcuts Hint -->
+        <div class="keyboard-hint desktop-only">
+            <div class="text-xs">
+                <div><kbd>j</kbd>/<kbd>k</kbd>: Navigate</div>
+                <div><kbd>Space</kbd>: Summary</div>
+                <div><kbd>r</kbd>: Mark Read</div>
+                <div><kbd>f</kbd>: Favorite</div>
+            </div>
+        </div>
+
+        <!-- Notification Sound -->
+        <audio id="notification-sound" class="notification-sound" preload="auto">
+            <!-- Inline Base64 notification sound (short beep) -->
+            <source src="data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmUUADGH1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmUUADGH1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmUUADGH1/LNeSsFJHfH8N2QQAoUXrTp66hVFApGn+DyvmUUADGH1/LNeSsFJHfH8N2QQAoUXrTp66hVFA=="></source>
+        </audio>
+
+        <!-- Floating Action Button (Mobile) -->
+        <button id="mobile-fab" class="fixed bottom-4 right-4 w-14 h-14 rounded-full btn btn-primary md:hidden" style="box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+            📝
+        </button>
+    </div>
+
+    <script>
+        // ===== GLOBAL VARIABLES =====
+        let articles = [];
+        let settings = {};
+        let selectedArticles = new Set();
+        let currentView = 'articles';
+        let selectedArticleIndex = 0;
+        let userInteracted = false;
+
+        // ===== INTERNATIONALIZATION =====
+        const translations = {
+            en: {
+                articles: 'Articles',
+                dashboard: 'Dashboard',
+                favorites: 'Favorites',
+                readLater: 'Read Later',
+                trending: 'Trending',
+                allSources: 'All Sources',
+                allSentiments: 'All Sentiments',
+                positive: 'Positive',
+                neutral: 'Neutral',
+                negative: 'Negative',
+                unreadOnly: 'Unread Only',
+                batchActions: 'Batch Actions',
+                readingStats: 'Reading Stats',
+                today: 'Today',
+                thisMonth: 'This Month',
+                thisYear: 'This Year',
+                topSources: 'Top Sources',
+                trendingKeywords: 'Trending Keywords',
+                readingChart: 'Reading Activity',
+                sentimentAnalysis: 'Sentiment Analysis',
+                favoriteArticles: 'Favorite Articles',
+                readLaterArticles: 'Read Later Articles',
+                trendingArticles: 'Trending Articles',
+                settings: 'Settings',
+                rssSources: 'RSS Sources',
+                addSource: 'Add Source',
+                apiKeys: 'API Keys',
+                notifications: 'Notifications',
+                enableSounds: 'Enable notification sounds',
+                dndSchedule: 'Do Not Disturb',
+                to: 'to',
+                dataManagement: 'Data Management',
+                exportData: 'Export Data',
+                importData: 'Import Data',
+                enableEncryption: 'Enable data encryption',
+                saveSettings: 'Save Settings',
+                aiSummary: 'AI Summary',
+                markAllRead: 'Mark Selected as Read',
+                addToFavorites: 'Add to Favorites',
+                addToReadLater: 'Add to Read Later',
+                addTag: 'Add Tag',
+                welcomeToNewsVeille: 'Welcome to News Veille Pro!',
+                tourIntro: 'Your professional news aggregation tool with AI-powered features.',
+                tourSearch: 'Search and filter articles',
+                tourAI: 'AI summaries and sentiment analysis',
+                tourDashboard: 'Analytics dashboard',
+                tourKeyboard: 'Keyboard shortcuts: j/k navigation, space for summary',
+                tourSync: 'Export/import for device sync',
+                startTour: 'Start Using',
+                readTime: 'min read',
+                summary: 'Summary',
+                playTTS: 'Play Audio',
+                stopTTS: 'Stop Audio',
+                markRead: 'Mark as Read',
+                markUnread: 'Mark as Unread',
+                favorite: 'Favorite',
+                readLaterBtn: 'Read Later',
+                addTagBtn: 'Add Tag',
+                annotate: 'Annotate',
+                openLink: 'Open Article'
+            },
+            fr: {
+                articles: 'Articles',
+                dashboard: 'Tableau de bord',
+                favorites: 'Favoris',
+                readLater: 'À lire plus tard',
+                trending: 'Tendances',
+                allSources: 'Toutes les sources',
+                allSentiments: 'Tous les sentiments',
+                positive: 'Positif',
+                neutral: 'Neutre',
+                negative: 'Négatif',
+                unreadOnly: 'Non lus seulement',
+                batchActions: 'Actions groupées',
+                readingStats: 'Statistiques de lecture',
+                today: "Aujourd'hui",
+                thisMonth: 'Ce mois-ci',
+                thisYear: 'Cette année',
+                topSources: 'Sources principales',
+                trendingKeywords: 'Mots-clés tendance',
+                readingChart: 'Activité de lecture',
+                sentimentAnalysis: 'Analyse de sentiment',
+                favoriteArticles: 'Articles favoris',
+                readLaterArticles: 'Articles à lire plus tard',
+                trendingArticles: 'Articles tendance',
+                settings: 'Paramètres',
+                rssSources: 'Sources RSS',
+                addSource: 'Ajouter une source',
+                apiKeys: 'Clés API',
+                notifications: 'Notifications',
+                enableSounds: 'Activer les sons de notification',
+                dndSchedule: 'Ne pas déranger',
+                to: 'à',
+                dataManagement: 'Gestion des données',
+                exportData: 'Exporter les données',
+                importData: 'Importer les données',
+                enableEncryption: 'Activer le chiffrement des données',
+                saveSettings: 'Sauvegarder les paramètres',
+                aiSummary: 'Résumé IA',
+                markAllRead: 'Marquer la sélection comme lue',
+                addToFavorites: 'Ajouter aux favoris',
+                addToReadLater: 'Ajouter à lire plus tard',
+                addTag: 'Ajouter une étiquette',
+                welcomeToNewsVeille: 'Bienvenue sur News Veille Pro!',
+                tourIntro: "Votre outil professionnel d'agrégation de nouvelles avec des fonctionnalités IA.",
+                tourSearch: 'Rechercher et filtrer les articles',
+                tourAI: 'Résumés IA et analyse de sentiment',
+                tourDashboard: 'Tableau de bord analytique',
+                tourKeyboard: 'Raccourcis clavier: navigation j/k, espace pour résumé',
+                tourSync: "Export/import pour synchronisation d'appareil",
+                startTour: 'Commencer',
+                readTime: 'min de lecture',
+                summary: 'Résumé',
+                playTTS: 'Lire audio',
+                stopTTS: 'Arrêter audio',
+                markRead: 'Marquer comme lu',
+                markUnread: 'Marquer comme non lu',
+                favorite: 'Favori',
+                readLaterBtn: 'À lire plus tard',
+                addTagBtn: 'Ajouter étiquette',
+                annotate: 'Annoter',
+                openLink: "Ouvrir l'article"
+            },
+            ar: {
+                articles: 'المقالات',
+                dashboard: 'لوحة التحكم',
+                favorites: 'المفضلة',
+                readLater: 'للقراءة لاحقاً',
+                trending: 'الأكثر تداولاً',
+                allSources: 'جميع المصادر',
+                allSentiments: 'جميع المشاعر',
+                positive: 'إيجابي',
+                neutral: 'محايد',
+                negative: 'سلبي',
+                unreadOnly: 'غير المقروءة فقط',
+                batchActions: 'إجراءات مجمعة',
+                readingStats: 'إحصائيات القراءة',
+                today: 'اليوم',
+                thisMonth: 'هذا الشهر',
+                thisYear: 'هذا العام',
+                topSources: 'أهم المصادر',
+                trendingKeywords: 'الكلمات المفتاحية الرائجة',
+                readingChart: 'نشاط القراءة',
+                sentimentAnalysis: 'تحليل المشاعر',
+                favoriteArticles: 'المقالات المفضلة',
+                readLaterArticles: 'مقالات للقراءة لاحقاً',
+                trendingArticles: 'المقالات الرائجة',
+                settings: 'الإعدادات',
+                rssSources: 'مصادر RSS',
+                addSource: 'إضافة مصدر',
+                apiKeys: 'مفاتيح API',
+                notifications: 'الإشعارات',
+                enableSounds: 'تفعيل أصوات الإشعارات',
+                dndSchedule: 'عدم الإزعاج',
+                to: 'إلى',
+                dataManagement: 'إدارة البيانات',
+                exportData: 'تصدير البيانات',
+                importData: 'استيراد البيانات',
+                enableEncryption: 'تفعيل تشفير البيانات',
+                saveSettings: 'حفظ الإعدادات',
+                aiSummary: 'ملخص ذكي',
+                markAllRead: 'تعيين المختارة كمقروءة',
+                addToFavorites: 'إضافة للمفضلة',
+                addToReadLater: 'إضافة للقراءة لاحقاً',
+                addTag: 'إضافة تصنيف',
+                welcomeToNewsVeille: 'مرحباً بك في News Veille Pro!',
+                tourIntro: 'أداتك المهنية لتجميع الأخبار مع ميزات الذكاء الاصطناعي.',
+                tourSearch: 'البحث وتصفية المقالات',
+                tourAI: 'الملخصات الذكية وتحليل المشاعر',
+                tourDashboard: 'لوحة التحليلات',
+                tourKeyboard: 'اختصارات لوحة المفاتيح: j/k للتنقل، مسافة للملخص',
+                tourSync: 'التصدير/الاستيراد لمزامنة الأجهزة',
+                startTour: 'بدء الاستخدام',
+                readTime: 'دقيقة قراءة',
+                summary: 'ملخص',
+                playTTS: 'تشغيل الصوت',
+                stopTTS: 'إيقاف الصوت',
+                markRead: 'تعيين كمقروء',
+                markUnread: 'تعيين كغير مقروء',
+                favorite: 'مفضل',
+                readLaterBtn: 'للقراءة لاحقاً',
+                addTagBtn: 'إضافة تصنيف',
+                annotate: 'إضافة تعليق',
+                openLink: 'فتح المقال'
+            }
+        };
+
+        // ===== DEFAULT SETTINGS =====
+        const defaultSettings = {
+            language: 'en',
+            theme: 'light',
+            rssSources: [
+                { url: 'https://feeds.bbci.co.uk/news/rss.xml', name: 'BBC News', enabled: true, interval: 15, category: 'International' },
+                { url: 'https://www.aljazeera.com/xml/rss/all.xml', name: 'Al Jazeera', enabled: true, interval: 15, category: 'International' },
+                { url: 'https://www.tap.info.tn/rss', name: 'TAP', enabled: true, interval: 30, category: 'Tunisia' },
+                { url: 'https://www.mosaiquefm.net/rss', name: 'Mosaique FM', enabled: true, interval: 30, category: 'Tunisia' }
+            ],
+            openaiApiKey: '',
+            huggingfaceApiKey: '',
+            soundNotifications: true,
+            dndStart: '22:00',
+            dndEnd: '08:00',
+            encryptionEnabled: false,
+            encryptionPassphrase: '',
+            autoRefresh: true,
+            refreshInterval: 15, // minutes
+            lastUpdate: null,
+            firstRun: true
+        };
+
+        // ===== ENCRYPTION UTILITIES =====
+        function encryptData(data, passphrase) {
+            if (!passphrase) return data;
+            return CryptoJS.AES.encrypt(JSON.stringify(data), passphrase).toString();
+        }
+
+        function decryptData(encryptedData, passphrase) {
+            if (!passphrase) return encryptedData;
+            try {
+                const bytes = CryptoJS.AES.decrypt(encryptedData, passphrase);
+                return JSON.parse(bytes.toString(CryptoJS.enc.Utf8));
+            } catch (e) {
+                console.error('Decryption failed:', e);
+                return null;
+            }
+        }
+
+        // ===== STORAGE UTILITIES =====
+        function saveToStorage(key, data) {
+            try {
+                let dataToStore = data;
+                if (settings.encryptionEnabled && settings.encryptionPassphrase) {
+                    dataToStore = encryptData(data, settings.encryptionPassphrase);
+                }
+                localStorage.setItem(key, typeof dataToStore === 'string' ? dataToStore : JSON.stringify(dataToStore));
+            } catch (e) {
+                console.error('Storage save failed:', e);
+            }
+        }
+
+        function loadFromStorage(key, defaultValue = null) {
+            try {
+                const stored = localStorage.getItem(key);
+                if (!stored) return defaultValue;
+                
+                let data = stored;
+                if (settings.encryptionEnabled && settings.encryptionPassphrase) {
+                    data = decryptData(stored, settings.encryptionPassphrase);
+                    if (data === null) return defaultValue;
+                } else {
+                    try {
+                        data = JSON.parse(stored);
+                    } catch (e) {
+                        // If parsing fails, assume it's a string
+                    }
+                }
+                
+                return data;
+            } catch (e) {
+                console.error('Storage load failed:', e);
+                return defaultValue;
+            }
+        }
+
+        // ===== INITIALIZATION =====
+        function initializeApp() {
+            // Load settings
+            settings = { ...defaultSettings, ...loadFromStorage('newsVeilleSettings', {}) };
+            
+            // Load articles
+            articles = loadFromStorage('newsVeilleArticles', []);
+            
+            // Set theme
+            document.documentElement.setAttribute('data-theme', settings.theme);
+            
+            // Set language
+            updateLanguage(settings.language);
+            
+            // Initialize UI
+            updateUI();
+            
+            // Set up event listeners
+            setupEventListeners();
+            
+            // Show onboarding for first-time users
+            if (settings.firstRun) {
+                showModal('onboarding-modal');
+                settings.firstRun = false;
+                saveSettings();
+            }
+            
+            // Start auto-refresh
+            if (settings.autoRefresh) {
+                startAutoRefresh();
+            }
+            
+            // Initial fetch
+            fetchAllNews();
+            
+            console.log('News Veille Pro initialized');
+        }
+
+        // ===== LANGUAGE MANAGEMENT =====
+        function updateLanguage(lang) {
+            settings.language = lang;
+            document.getElementById('language-selector').value = lang;
+            
+            // Update all translatable elements
+            document.querySelectorAll('[data-i18n]').forEach(element => {
+                const key = element.getAttribute('data-i18n');
+                if (translations[lang] && translations[lang][key]) {
+                    element.textContent = translations[lang][key];
+                }
+            });
+            
+            // Set document direction for Arabic
+            if (lang === 'ar') {
+                document.documentElement.dir = 'rtl';
+            } else {
+                document.documentElement.dir = 'ltr';
+            }
+        }
+
+        // ===== RSS FETCHING =====
+        async function fetchRSSFeed(source) {
+            try {
+                updateStatus(`Fetching ${source.name}...`);
+                
+                // Use CORS proxy
+                const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(source.url)}`;
+                const response = await fetch(proxyUrl);
+                const data = await response.json();
+                
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(data.contents, 'text/xml');
+                
+                const items = xmlDoc.querySelectorAll('item');
+                const newArticles = [];
+                
+                Array.from(items).forEach((item, index) => {
+                    const title = item.querySelector('title')?.textContent || '';
+                    const description = item.querySelector('description')?.textContent || '';
+                    const link = item.querySelector('link')?.textContent || '';
+                    const pubDate = item.querySelector('pubDate')?.textContent || new Date().toISOString();
+                    
+                    const article = {
+                        id: `${source.name}-${index}-${Date.now()}`,
+                        title: title.replace(/<!\[CDATA\[|\]\]>/g, '').trim(),
+                        description: description.replace(/<!\[CDATA\[|\]\]>/g, '').replace(/<[^>]*>/g, '').trim(),
+                        link,
+                        pubDate: new Date(pubDate).toISOString(),
+                        source: source.name,
+                        category: source.category || 'General',
+                        isRead: false,
+                        isFavorite: false,
+                        isReadLater: false,
+                        tags: [],
+                        sentiment: analyzeSentiment(title + ' ' + description),
+                        readTime: estimateReadTime(description),
+                        summary: '',
+                        annotations: []
+                    };
+                    
+                    newArticles.push(article);
+                });
+                
+                return newArticles;
+            } catch (error) {
+                console.error(`Error fetching ${source.name}:`, error);
+                return [];
+            }
+        }
+
+        async function fetchAllNews() {
+            const enabledSources = settings.rssSources.filter(source => source.enabled);
+            const allNewArticles = [];
+            
+            for (const source of enabledSources) {
+                const sourceArticles = await fetchRSSFeed(source);
+                allNewArticles.push(...sourceArticles);
+            }
+            
+            // Deduplicate articles
+            const deduplicatedArticles = deduplicateArticles(allNewArticles);
+            
+            // Merge with existing articles (preserve read status, etc.)
+            mergeArticles(deduplicatedArticles);
+            
+            // Detect trending articles
+            detectTrending();
+            
+            // Update UI
+            updateUI();
+            updateDashboard();
+            
+            // Check for new articles and notify
+            const newCount = deduplicatedArticles.filter(article => 
+                !articles.find(existing => existing.link === article.link)
+            ).length;
+            
+            if (newCount > 0) {
+                notifyNewArticles(newCount);
+            }
+            
+            // Save articles
+            saveToStorage('newsVeilleArticles', articles);
+            
+            settings.lastUpdate = new Date().toISOString();
+            saveSettings();
+            
+            updateStatus('Ready');
+        }
+
+        // ===== DEDUPLICATION =====
+        function deduplicateArticles(newArticles) {
+            const seen = new Set();
+            const deduplicated = [];
+            
+            // Sort by date (newest first)
+            newArticles.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+            
+            newArticles.forEach(article => {
+                const normalizedTitle = article.title.toLowerCase().trim();
+                const similarity = findSimilarArticle(article, deduplicated);
+                
+                if (!seen.has(article.link) && !similarity) {
+                    seen.add(article.link);
+                    seen.add(normalizedTitle);
+                    deduplicated.push(article);
+                }
+            });
+            
+            return deduplicated;
+        }
+
+        function findSimilarArticle(article, existingArticles) {
+            const threshold = 0.8; // 80% similarity threshold
+            
+            return existingArticles.find(existing => {
+                const similarity = calculateSimilarity(article.title, existing.title);
+                return similarity > threshold;
+            });
+        }
+
+        function calculateSimilarity(str1, str2) {
+            const longer = str1.length > str2.length ? str1 : str2;
+            const shorter = str1.length > str2.length ? str2 : str1;
+            
+            if (longer.length === 0) return 1.0;
+            
+            const editDistance = levenshteinDistance(longer, shorter);
+            return (longer.length - editDistance) / longer.length;
+        }
+
+        function levenshteinDistance(str1, str2) {
+            const matrix = [];
+            
+            for (let i = 0; i <= str2.length; i++) {
+                matrix[i] = [i];
+            }
+            
+            for (let j = 0; j <= str1.length; j++) {
+                matrix[0][j] = j;
+            }
+            
+            for (let i = 1; i <= str2.length; i++) {
+                for (let j = 1; j <= str1.length; j++) {
+                    if (str2.charAt(i - 1) === str1.charAt(j - 1)) {
+                        matrix[i][j] = matrix[i - 1][j - 1];
+                    } else {
+                        matrix[i][j] = Math.min(
+                            matrix[i - 1][j - 1] + 1,
+                            matrix[i][j - 1] + 1,
+                            matrix[i - 1][j] + 1
+                        );
+                    }
+                }
+            }
+            
+            return matrix[str2.length][str1.length];
+        }
+
+        // ===== ARTICLE MERGING =====
+        function mergeArticles(newArticles) {
+            const existingLinks = new Set(articles.map(a => a.link));
+            
+            newArticles.forEach(newArticle => {
+                if (!existingLinks.has(newArticle.link)) {
+                    articles.unshift(newArticle); // Add to beginning (newest first)
+                }
+            });
+            
+            // Sort all articles by date (newest first)
+            articles.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+            
+            // Limit to last 1000 articles to prevent storage bloat
+            if (articles.length > 1000) {
+                articles = articles.slice(0, 1000);
+            }
+        }
+
+        // ===== TRENDING DETECTION =====
+        function detectTrending() {
+            const trendingThreshold = 2; // Appears in at least 2 sources
+            const recentHours = 6; // Within last 6 hours
+            const cutoffTime = new Date(Date.now() - recentHours * 60 * 60 * 1000);
+            
+            // Get recent articles
+            const recentArticles = articles.filter(article => 
+                new Date(article.pubDate) > cutoffTime
+            );
+            
+            // Group by similar titles
+            const titleGroups = {};
+            recentArticles.forEach(article => {
+                const normalizedTitle = normalizeForTrending(article.title);
+                if (!titleGroups[normalizedTitle]) {
+                    titleGroups[normalizedTitle] = [];
+                }
+                titleGroups[normalizedTitle].push(article);
+            });
+            
+            // Mark trending articles
+            Object.values(titleGroups).forEach(group => {
+                if (group.length >= trendingThreshold) {
+                    group.forEach(article => {
+                        article.isTrending = true;
+                    });
+                }
+            });
+        }
+
+        function normalizeForTrending(title) {
+            return title.toLowerCase()
+                .replace(/[^\w\s]/g, '')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .split(' ')
+                .slice(0, 5) // First 5 words
+                .join(' ');
+        }
+
+        // ===== SENTIMENT ANALYSIS =====
+        function analyzeSentiment(text) {
+            // Simple keyword-based sentiment analysis
+            const positiveWords = ['good', 'great', 'excellent', 'amazing', 'wonderful', 'fantastic', 'positive', 'success', 'win', 'victory', 'achieve', 'progress'];
+            const negativeWords = ['bad', 'terrible', 'awful', 'horrible', 'negative', 'fail', 'loss', 'defeat', 'crisis', 'problem', 'issue', 'concern'];
+            
+            const lowerText = text.toLowerCase();
+            const positiveCount = positiveWords.filter(word => lowerText.includes(word)).length;
+            const negativeCount = negativeWords.filter(word => lowerText.includes(word)).length;
+            
+            if (positiveCount > negativeCount) return 'positive';
+            if (negativeCount > positiveCount) return 'negative';
+            return 'neutral';
+        }
+
+        // ===== READ TIME ESTIMATION =====
+        function estimateReadTime(text) {
+            const wordsPerMinute = 200;
+            const wordCount = text.split(/\s+/).length;
+            return Math.max(1, Math.ceil(wordCount / wordsPerMinute));
+        }
+
+        // ===== UI UPDATES =====
+        function updateUI() {
+            updateUnreadBadge();
+            renderArticles();
+            updateSourceFilter();
+        }
+
+        function updateUnreadBadge() {
+            const unreadCount = articles.filter(a => !a.isRead).length;
+            const badge = document.getElementById('unread-badge');
+            
+            if (unreadCount > 0) {
+                badge.style.display = 'block';
+                badge.textContent = unreadCount;
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+
+        function updateSourceFilter() {
+            const sourceFilter = document.getElementById('source-filter');
+            const sources = [...new Set(articles.map(a => a.source))];
+            
+            // Clear existing options except "All Sources"
+            while (sourceFilter.children.length > 1) {
+                sourceFilter.removeChild(sourceFilter.lastChild);
+            }
+            
+            sources.forEach(source => {
+                const option = document.createElement('option');
+                option.value = source;
+                option.textContent = source;
+                sourceFilter.appendChild(option);
+            });
+        }
+
+        function renderArticles() {
+            const container = document.getElementById('articles-container');
+            const filteredArticles = getFilteredArticles();
+            
+            container.innerHTML = '';
+            
+            if (filteredArticles.length === 0) {
+                container.innerHTML = `
+                    <div class="col-span-full text-center py-12">
+                        <p class="text-lg" style="color: var(--text-secondary);">No articles found matching your filters.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Group trending articles
+            const trendingGroups = groupTrendingArticles(filteredArticles);
+            
+            trendingGroups.forEach(group => {
+                if (group.isTrending) {
+                    renderTrendingCluster(container, group.articles);
+                } else {
+                    group.articles.forEach(article => {
+                        renderArticle(container, article);
+                    });
+                }
+            });
+        }
+
+        function groupTrendingArticles(articles) {
+            const groups = [];
+            const processed = new Set();
+            
+            articles.forEach(article => {
+                if (processed.has(article.id)) return;
+                
+                if (article.isTrending) {
+                    const similarArticles = articles.filter(a => 
+                        a.isTrending && 
+                        !processed.has(a.id) && 
+                        normalizeForTrending(a.title) === normalizeForTrending(article.title)
+                    );
+                    
+                    similarArticles.forEach(a => processed.add(a.id));
+                    
+                    groups.push({
+                        isTrending: true,
+                        articles: similarArticles
+                    });
+                } else {
+                    processed.add(article.id);
+                    groups.push({
+                        isTrending: false,
+                        articles: [article]
+                    });
+                }
+            });
+            
+            return groups;
+        }
+
+        function renderTrendingCluster(container, articles) {
+            const clusterDiv = document.createElement('div');
+            clusterDiv.className = 'cluster-group';
+            clusterDiv.innerHTML = `
+                <div class="cluster-header">
+                    🔥 Trending: ${articles[0].title} (${articles.length} sources)
+                </div>
+                <div class="space-y-2">
+                    ${articles.map(article => `
+                        <div class="text-sm" style="color: var(--text-secondary);">
+                            📰 ${article.source} - ${formatDate(article.pubDate)}
+                        </div>
+                    `).join('')}
+                </div>
+                <button class="btn btn-primary mt-2" onclick="expandCluster(this, ${JSON.stringify(articles.map(a => a.id))})">
+                    View All Articles
+                </button>
+            `;
+            container.appendChild(clusterDiv);
+        }
+
+        function expandCluster(button, articleIds) {
+            const clusterDiv = button.closest('.cluster-group');
+            const articlesToShow = articles.filter(a => articleIds.includes(a.id));
+            
+            clusterDiv.innerHTML = '';
+            articlesToShow.forEach(article => {
+                renderArticle(clusterDiv, article);
+            });
+        }
+
+        function renderArticle(container, article) {
+            const articleDiv = document.createElement('div');
+            articleDiv.className = `card article-card ${article.isRead ? 'read-article' : ''} ${article.isFavorite ? 'favorite-article' : ''}`;
+            articleDiv.setAttribute('data-article-id', article.id);
+            
+            const isSelected = selectedArticles.has(article.id);
+            
+            articleDiv.innerHTML = `
+                <div class="flex items-start justify-between mb-3">
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2 mb-2">
+                            <input type="checkbox" class="article-select" ${isSelected ? 'checked' : ''} 
+                                   onchange="toggleArticleSelection('${article.id}', this.checked)">
+                            <span class="text-sm font-medium" style="color: var(--accent-color);">${article.source}</span>
+                            <span class="text-xs" style="color: var(--text-secondary);">${article.category}</span>
+                            <span class="text-xs" style="color: var(--text-secondary);">${formatDate(article.pubDate)}</span>
+                            <span class="text-xs" style="color: var(--text-secondary);">${article.readTime} ${translations[settings.language].readTime}</span>
+                            <span class="sentiment-${article.sentiment} text-xs font-medium">${article.sentiment}</span>
+                            ${article.isTrending ? '<span class="trending-badge">🔥 Trending</span>' : ''}
+                        </div>
+                        <h3 class="font-bold text-lg mb-2 cursor-pointer" onclick="openArticle('${article.id}')">${article.title}</h3>
+                        <p class="text-sm mb-3" style="color: var(--text-secondary);">${article.description}</p>
+                        ${article.tags.length > 0 ? `
+                            <div class="flex flex-wrap gap-1 mb-3">
+                                ${article.tags.map(tag => `<span class="px-2 py-1 text-xs rounded" style="background-color: var(--bg-secondary);">🏷️ ${tag}</span>`).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+                
+                <div class="flex items-center justify-between">
+                    <div class="flex gap-2">
+                        <button class="btn btn-secondary text-xs" onclick="generateSummary('${article.id}')" title="${translations[settings.language].summary}">
+                            🤖 ${translations[settings.language].summary}
+                        </button>
+                        <button class="btn btn-secondary text-xs" onclick="toggleTTS('${article.id}')" title="${translations[settings.language].playTTS}">
+                            🔊 TTS
+                        </button>
+                        <button class="btn btn-secondary text-xs" onclick="toggleRead('${article.id}')" title="${article.isRead ? translations[settings.language].markUnread : translations[settings.language].markRead}">
+                            ${article.isRead ? '👁️‍🗨️' : '👁️'} ${article.isRead ? 'Unread' : 'Read'}
+                        </button>
+                        <button class="btn btn-secondary text-xs ${article.isFavorite ? 'btn-warning' : ''}" onclick="toggleFavorite('${article.id}')" title="${translations[settings.language].favorite}">
+                            ${article.isFavorite ? '⭐' : '☆'} ${translations[settings.language].favorite}
+                        </button>
+                        <button class="btn btn-secondary text-xs ${article.isReadLater ? 'btn-warning' : ''}" onclick="toggleReadLater('${article.id}')" title="${translations[settings.language].readLaterBtn}">
+                            📌 ${translations[settings.language].readLaterBtn}
+                        </button>
+                    </div>
+                    <button class="btn btn-primary text-xs" onclick="openArticle('${article.id}')" title="${translations[settings.language].openLink}">
+                        🔗 ${translations[settings.language].openLink}
+                    </button>
+                </div>
+            `;
+            
+            container.appendChild(articleDiv);
+        }
+
+        // ===== ARTICLE ACTIONS =====
+        function openArticle(articleId) {
+            const article = articles.find(a => a.id === articleId);
+            if (article) {
+                window.open(article.link, '_blank');
+                if (!article.isRead) {
+                    toggleRead(articleId);
+                }
+                recordReading(article);
+            }
+            userInteracted = true;
+        }
+
+        function toggleRead(articleId) {
+            const article = articles.find(a => a.id === articleId);
+            if (article) {
+                article.isRead = !article.isRead;
+                if (article.isRead) {
+                    recordReading(article);
+                }
+                saveToStorage('newsVeilleArticles', articles);
+                updateUI();
+            }
+        }
+
+        function toggleFavorite(articleId) {
+            const article = articles.find(a => a.id === articleId);
+            if (article) {
+                article.isFavorite = !article.isFavorite;
+                saveToStorage('newsVeilleArticles', articles);
+                updateUI();
+            }
+        }
+
+        function toggleReadLater(articleId) {
+            const article = articles.find(a => a.id === articleId);
+            if (article) {
+                article.isReadLater = !article.isReadLater;
+                saveToStorage('newsVeilleArticles', articles);
+                updateUI();
+            }
+        }
+
+        function toggleArticleSelection(articleId, selected) {
+            if (selected) {
+                selectedArticles.add(articleId);
+            } else {
+                selectedArticles.delete(articleId);
+            }
+        }
+
+        // ===== AI FEATURES =====
+        async function generateSummary(articleId) {
+            const article = articles.find(a => a.id === articleId);
+            if (!article) return;
+            
+            showModal('summary-modal');
+            const summaryContent = document.getElementById('summary-content');
+            const spinner = summaryContent.querySelector('.loading-spinner');
+            const textDiv = document.getElementById('summary-text');
+            
+            spinner.style.display = 'block';
+            textDiv.innerHTML = '';
+            
+            try {
+                let summary = '';
+                
+                if (settings.openaiApiKey) {
+                    summary = await getOpenAISummary(article);
+                } else if (settings.huggingfaceApiKey) {
+                    summary = await getHuggingFaceSummary(article);
+                } else {
+                    summary = getSimpleSummary(article);
+                }
+                
+                article.summary = summary;
+                saveToStorage('newsVeilleArticles', articles);
+                
+                textDiv.innerHTML = summary;
+            } catch (error) {
+                console.error('Summary generation failed:', error);
+                textDiv.innerHTML = 'Summary generation failed. Please check your API keys.';
+            } finally {
+                spinner.style.display = 'none';
+            }
+        }
+
+        async function getOpenAISummary(article) {
+            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${settings.openaiApiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    model: 'gpt-3.5-turbo',
+                    messages: [
+                        {
+                            role: 'system',
+                            content: 'You are a news summarizer. Provide a concise 2-3 sentence summary of the article.'
+                        },
+                        {
+                            role: 'user',
+                            content: `Summarize this article:\n\nTitle: ${article.title}\n\nContent: ${article.description}`
+                        }
+                    ],
+                    max_tokens: 150,
+                    temperature: 0.3
+                })
+            });
+            
+            const data = await response.json();
+            return data.choices[0].message.content;
+        }
+
+        async function getHuggingFaceSummary(article) {
+            const response = await fetch('https://api-inference.huggingface.co/models/facebook/bart-large-cnn', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${settings.huggingfaceApiKey}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    inputs: `${article.title}. ${article.description}`,
+                    parameters: {
+                        max_length: 100,
+                        min_length: 30
+                    }
+                })
+            });
+            
+            const data = await response.json();
+            return data[0].summary_text;
+        }
+
+        function getSimpleSummary(article) {
+            // Fallback: extract first 2 sentences
+            const sentences = article.description.split(/[.!?]+/).filter(s => s.trim().length > 10);
+            return sentences.slice(0, 2).join('. ') + '.';
+        }
+
+        // ===== TEXT-TO-SPEECH =====
+        let currentTTS = null;
+
+        function toggleTTS(articleId) {
+            const article = articles.find(a => a.id === articleId);
+            if (!article) return;
+            
+            if (currentTTS && !currentTTS.paused) {
+                speechSynthesis.cancel();
+                currentTTS = null;
+                return;
+            }
+            
+            if ('speechSynthesis' in window) {
+                currentTTS = new SpeechSynthesisUtterance();
+                currentTTS.text = `${article.title}. ${article.description}`;
+                currentTTS.rate = 0.8;
+                currentTTS.pitch = 1;
+                currentTTS.volume = 0.8;
+                
+                // Use appropriate voice for language
+                const voices = speechSynthesis.getVoices();
+                const langVoice = voices.find(voice => voice.lang.startsWith(settings.language));
+                if (langVoice) {
+                    currentTTS.voice = langVoice;
+                }
+                
+                speechSynthesis.speak(currentTTS);
+            }
+        }
+
+        // ===== FILTERING =====
+        function getFilteredArticles() {
+            const searchTerm = document.getElementById('search-input').value.toLowerCase();
+            const sourceFilter = document.getElementById('source-filter').value;
+            const sentimentFilter = document.getElementById('sentiment-filter').value;
+            const unreadOnly = document.getElementById('unread-only-filter').checked;
+            
+            return articles.filter(article => {
+                if (searchTerm && !article.title.toLowerCase().includes(searchTerm) && 
+                    !article.description.toLowerCase().includes(searchTerm)) {
+                    return false;
+                }
+                
+                if (sourceFilter !== 'all' && article.source !== sourceFilter) {
+                    return false;
+                }
+                
+                if (sentimentFilter !== 'all' && article.sentiment !== sentimentFilter) {
+                    return false;
+                }
+                
+                if (unreadOnly && article.isRead) {
+                    return false;
+                }
+                
+                return true;
+            });
+        }
+
+        // ===== DASHBOARD =====
+        function updateDashboard() {
+            updateReadingStats();
+            updateTopSources();
+            updateWordCloud();
+            updateCharts();
+        }
+
+        function updateReadingStats() {
+            const now = new Date();
+            const today = now.toDateString();
+            const thisMonth = `${now.getFullYear()}-${now.getMonth() + 1}`;
+            const thisYear = now.getFullYear().toString();
+            
+            const readArticles = articles.filter(a => a.isRead);
+            
+            const todayCount = readArticles.filter(a => new Date(a.pubDate).toDateString() === today).length;
+            const monthCount = readArticles.filter(a => {
+                const date = new Date(a.pubDate);
+                return `${date.getFullYear()}-${date.getMonth() + 1}` === thisMonth;
+            }).length;
+            const yearCount = readArticles.filter(a => new Date(a.pubDate).getFullYear().toString() === thisYear).length;
+            
+            document.getElementById('stats-today').textContent = todayCount;
+            document.getElementById('stats-month').textContent = monthCount;
+            document.getElementById('stats-year').textContent = yearCount;
+        }
+
+        function updateTopSources() {
+            const sourceCounts = {};
+            articles.filter(a => a.isRead).forEach(article => {
+                sourceCounts[article.source] = (sourceCounts[article.source] || 0) + 1;
+            });
+            
+            const topSources = Object.entries(sourceCounts)
+                .sort(([,a], [,b]) => b - a)
+                .slice(0, 5);
+            
+            const container = document.getElementById('top-sources-list');
+            container.innerHTML = topSources.map(([source, count]) => 
+                `<div class="flex justify-between"><span>${source}</span><span>${count}</span></div>`
+            ).join('');
+        }
+
+        function updateWordCloud() {
+            const words = {};
+            articles.forEach(article => {
+                const text = `${article.title} ${article.description}`.toLowerCase();
+                const wordList = text.match(/\b\w{4,}\b/g) || [];
+                
+                wordList.forEach(word => {
+                    if (!['that', 'this', 'with', 'have', 'will', 'from', 'they', 'been', 'said', 'more', 'also'].includes(word)) {
+                        words[word] = (words[word] || 0) + 1;
+                    }
+                });
+            });
+            
+            const topWords = Object.entries(words)
+                .sort(([,a], [,b]) => b - a)
+                .slice(0, 20);
+            
+            const container = document.getElementById('word-cloud');
+            container.innerHTML = topWords.map(([word, count]) => {
+                const size = Math.min(16 + count * 2, 24);
+                return `<span style="font-size: ${size}px; opacity: ${Math.min(0.5 + count * 0.1, 1)}">${word}</span>`;
+            }).join('');
+        }
+
+        function updateCharts() {
+            updateReadingChart();
+            updateSentimentChart();
+        }
+
+        function updateReadingChart() {
+            const ctx = document.getElementById('reading-chart').getContext('2d');
+            
+            // Get last 7 days of data
+            const days = [];
+            const counts = [];
+            
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                const dateStr = date.toDateString();
+                
+                const count = articles.filter(a => 
+                    a.isRead && new Date(a.pubDate).toDateString() === dateStr
+                ).length;
+                
+                days.push(date.toLocaleDateString(settings.language, { weekday: 'short' }));
+                counts.push(count);
+            }
+            
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: days,
+                    datasets: [{
+                        label: 'Articles Read',
+                        data: counts,
+                        borderColor: 'var(--accent-color)',
+                        backgroundColor: 'var(--accent-color)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateSentimentChart() {
+            const ctx = document.getElementById('sentiment-chart').getContext('2d');
+            
+            const sentimentCounts = {
+                positive: articles.filter(a => a.sentiment === 'positive').length,
+                neutral: articles.filter(a => a.sentiment === 'neutral').length,
+                negative: articles.filter(a => a.sentiment === 'negative').length
+            };
+            
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Positive', 'Neutral', 'Negative'],
+                    datasets: [{
+                        data: [sentimentCounts.positive, sentimentCounts.neutral, sentimentCounts.negative],
+                        backgroundColor: ['var(--success-color)', 'var(--text-secondary)', 'var(--error-color)']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        // ===== NOTIFICATIONS =====
+        function notifyNewArticles(count) {
+            if (!settings.soundNotifications) return;
+            if (isInDNDPeriod()) return;
+            if (!userInteracted) return; // Respect autoplay policies
+            
+            // Play notification sound
+            const audio = document.getElementById('notification-sound');
+            audio.play().catch(console.error);
+            
+            // Desktop notification (if permission granted)
+            if (Notification.permission === 'granted') {
+                new Notification('News Veille Pro', {
+                    body: `${count} new articles available`,
+                    icon: '/favicon.ico'
+                });
+            }
+        }
+
+        function isInDNDPeriod() {
+            const now = new Date();
+            const currentTime = now.getHours() * 100 + now.getMinutes();
+            const startTime = parseTime(settings.dndStart);
+            const endTime = parseTime(settings.dndEnd);
+            
+            if (startTime <= endTime) {
+                return currentTime >= startTime && currentTime < endTime;
+            } else {
+                return currentTime >= startTime || currentTime < endTime;
+            }
+        }
+
+        function parseTime(timeStr) {
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            return hours * 100 + minutes;
+        }
+
+        // ===== READING TRACKING =====
+        function recordReading(article) {
+            const today = new Date().toISOString().split('T')[0];
+            const readingHistory = loadFromStorage('newsVeilleReadingHistory', {});
+            
+            if (!readingHistory[today]) {
+                readingHistory[today] = [];
+            }
+            
+            readingHistory[today].push({
+                id: article.id,
+                source: article.source,
+                category: article.category,
+                timestamp: new Date().toISOString()
+            });
+            
+            saveToStorage('newsVeilleReadingHistory', readingHistory);
+        }
+
+        // ===== BATCH ACTIONS =====
+        function performBatchAction(action) {
+            const selectedIds = Array.from(selectedArticles);
+            
+            selectedIds.forEach(id => {
+                const article = articles.find(a => a.id === id);
+                if (!article) return;
+                
+                switch (action) {
+                    case 'markRead':
+                        article.isRead = true;
+                        recordReading(article);
+                        break;
+                    case 'addFavorite':
+                        article.isFavorite = true;
+                        break;
+                    case 'addReadLater':
+                        article.isReadLater = true;
+                        break;
+                    case 'addTag':
+                        const tag = document.getElementById('batch-tag-input').value.trim();
+                        if (tag && !article.tags.includes(tag)) {
+                            article.tags.push(tag);
+                        }
+                        break;
+                }
+            });
+            
+            saveToStorage('newsVeilleArticles', articles);
+            selectedArticles.clear();
+            updateUI();
+            hideModal('batch-modal');
+            
+            // Show undo option
+            showUndoOption(action, selectedIds);
+        }
+
+        function showUndoOption(action, affectedIds) {
+            // Simple undo implementation - could be enhanced
+            const undoDiv = document.createElement('div');
+            undoDiv.className = 'fixed bottom-4 left-4 card z-50';
+            undoDiv.innerHTML = `
+                <div class="flex items-center gap-2">
+                    <span>Action performed on ${affectedIds.length} articles</span>
+                    <button class="btn btn-secondary text-xs" onclick="undoBatchAction('${action}', ${JSON.stringify(affectedIds)}, this.parentElement.parentElement)">
+                        Undo
+                    </button>
+                </div>
+            `;
+            document.body.appendChild(undoDiv);
+            
+            setTimeout(() => {
+                if (undoDiv.parentElement) {
+                    undoDiv.remove();
+                }
+            }, 5000);
+        }
+
+        function undoBatchAction(action, affectedIds, undoDiv) {
+            affectedIds.forEach(id => {
+                const article = articles.find(a => a.id === id);
+                if (!article) return;
+                
+                switch (action) {
+                    case 'markRead':
+                        article.isRead = false;
+                        break;
+                    case 'addFavorite':
+                        article.isFavorite = false;
+                        break;
+                    case 'addReadLater':
+                        article.isReadLater = false;
+                        break;
+                }
+            });
+            
+            saveToStorage('newsVeilleArticles', articles);
+            updateUI();
+            undoDiv.remove();
+        }
+
+        // ===== NAVIGATION =====
+        function switchView(viewName) {
+            // Hide all views
+            document.querySelectorAll('.view').forEach(view => {
+                view.style.display = 'none';
+            });
+            
+            // Remove active class from all tabs
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Show selected view
+            document.getElementById(viewName + '-view').style.display = 'block';
+            document.querySelector(`[data-view="${viewName}"]`).classList.add('active');
+            
+            currentView = viewName;
+            
+            // Update view content
+            switch (viewName) {
+                case 'favorites':
+                    renderViewArticles('favorites-container', articles.filter(a => a.isFavorite));
+                    break;
+                case 'read-later':
+                    renderViewArticles('read-later-container', articles.filter(a => a.isReadLater));
+                    break;
+                case 'trending':
+                    renderViewArticles('trending-container', articles.filter(a => a.isTrending));
+                    break;
+                case 'dashboard':
+                    updateDashboard();
+                    break;
+            }
+        }
+
+        function renderViewArticles(containerId, articlesToRender) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            
+            if (articlesToRender.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12">
+                        <p class="text-lg" style="color: var(--text-secondary);">No articles in this category yet.</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            articlesToRender.forEach(article => {
+                renderArticle(container, article);
+            });
+        }
+
+        // ===== KEYBOARD SHORTCUTS =====
+        function setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                // Ignore if user is typing in an input
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+                
+                switch (e.key.toLowerCase()) {
+                    case 'j':
+                        navigateArticle(1);
+                        e.preventDefault();
+                        break;
+                    case 'k':
+                        navigateArticle(-1);
+                        e.preventDefault();
+                        break;
+                    case ' ':
+                        if (selectedArticleIndex >= 0) {
+                            const visibleArticles = getFilteredArticles();
+                            if (visibleArticles[selectedArticleIndex]) {
+                                generateSummary(visibleArticles[selectedArticleIndex].id);
+                            }
+                        }
+                        e.preventDefault();
+                        break;
+                    case 'r':
+                        if (selectedArticleIndex >= 0) {
+                            const visibleArticles = getFilteredArticles();
+                            if (visibleArticles[selectedArticleIndex]) {
+                                toggleRead(visibleArticles[selectedArticleIndex].id);
+                            }
+                        }
+                        e.preventDefault();
+                        break;
+                    case 'f':
+                        if (selectedArticleIndex >= 0) {
+                            const visibleArticles = getFilteredArticles();
+                            if (visibleArticles[selectedArticleIndex]) {
+                                toggleFavorite(visibleArticles[selectedArticleIndex].id);
+                            }
+                        }
+                        e.preventDefault();
+                        break;
+                }
+            });
+        }
+
+        function navigateArticle(direction) {
+            const visibleArticles = getFilteredArticles();
+            if (visibleArticles.length === 0) return;
+            
+            selectedArticleIndex += direction;
+            if (selectedArticleIndex < 0) selectedArticleIndex = 0;
+            if (selectedArticleIndex >= visibleArticles.length) selectedArticleIndex = visibleArticles.length - 1;
+            
+            // Highlight selected article
+            document.querySelectorAll('.article-card').forEach((card, index) => {
+                if (index === selectedArticleIndex) {
+                    card.style.boxShadow = '0 0 0 2px var(--accent-color)';
+                    card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                } else {
+                    card.style.boxShadow = '';
+                }
+            });
+        }
+
+        // ===== SETTINGS MANAGEMENT =====
+        function loadSettings() {
+            const settingsForm = document.getElementById('settings-modal');
+            
+            // Populate RSS sources
+            renderRSSSourcesList();
+            
+            // Populate form fields
+            document.getElementById('openai-key').value = settings.openaiApiKey;
+            document.getElementById('huggingface-key').value = settings.huggingfaceApiKey;
+            document.getElementById('sound-notifications').checked = settings.soundNotifications;
+            document.getElementById('dnd-start').value = settings.dndStart;
+            document.getElementById('dnd-end').value = settings.dndEnd;
+            document.getElementById('encryption-enabled').checked = settings.encryptionEnabled;
+            document.getElementById('encryption-passphrase').value = settings.encryptionPassphrase;
+            
+            // Show/hide encryption passphrase
+            document.getElementById('encryption-passphrase').style.display = 
+                settings.encryptionEnabled ? 'block' : 'none';
+        }
+
+        function renderRSSSourcesList() {
+            const container = document.getElementById('rss-sources-list');
+            container.innerHTML = '';
+            
+            settings.rssSources.forEach((source, index) => {
+                const sourceDiv = document.createElement('div');
+                sourceDiv.className = 'flex items-center gap-2 p-2 border rounded';
+                sourceDiv.style.borderColor = 'var(--border-color)';
+                sourceDiv.innerHTML = `
+                    <input type="checkbox" ${source.enabled ? 'checked' : ''} 
+                           onchange="toggleSource(${index}, this.checked)">
+                    <input type="text" value="${source.name}" 
+                           onchange="updateSourceName(${index}, this.value)"
+                           class="flex-1 p-1 border rounded" style="border-color: var(--border-color);">
+                    <input type="url" value="${source.url}" 
+                           onchange="updateSourceURL(${index}, this.value)"
+                           class="flex-1 p-1 border rounded" style="border-color: var(--border-color);">
+                    <select onchange="updateSourceInterval(${index}, parseInt(this.value))"
+                            class="p-1 border rounded" style="border-color: var(--border-color);">
+                        <option value="5" ${source.interval === 5 ? 'selected' : ''}>5 min</option>
+                        <option value="15" ${source.interval === 15 ? 'selected' : ''}>15 min</option>
+                        <option value="30" ${source.interval === 30 ? 'selected' : ''}>30 min</option>
+                        <option value="60" ${source.interval === 60 ? 'selected' : ''}>60 min</option>
+                    </select>
+                    <button class="btn btn-secondary text-xs" onclick="removeSource(${index})">🗑️</button>
+                `;
+                container.appendChild(sourceDiv);
+            });
+        }
+
+        function toggleSource(index, enabled) {
+            settings.rssSources[index].enabled = enabled;
+        }
+
+        function updateSourceName(index, name) {
+            settings.rssSources[index].name = name;
+        }
+
+        function updateSourceURL(index, url) {
+            settings.rssSources[index].url = url;
+        }
+
+        function updateSourceInterval(index, interval) {
+            settings.rssSources[index].interval = interval;
+        }
+
+        function removeSource(index) {
+            settings.rssSources.splice(index, 1);
+            renderRSSSourcesList();
+        }
+
+        function addNewSource() {
+            const name = prompt('Source name:');
+            const url = prompt('RSS URL:');
+            
+            if (name && url) {
+                settings.rssSources.push({
+                    name,
+                    url,
+                    enabled: true,
+                    interval: 15,
+                    category: 'General'
+                });
+                renderRSSSourcesList();
+            }
+        }
+
+        function saveSettings() {
+            // Get form values
+            settings.openaiApiKey = document.getElementById('openai-key').value;
+            settings.huggingfaceApiKey = document.getElementById('huggingface-key').value;
+            settings.soundNotifications = document.getElementById('sound-notifications').checked;
+            settings.dndStart = document.getElementById('dnd-start').value;
+            settings.dndEnd = document.getElementById('dnd-end').value;
+            settings.encryptionEnabled = document.getElementById('encryption-enabled').checked;
+            settings.encryptionPassphrase = document.getElementById('encryption-passphrase').value;
+            
+            // Save to storage
+            saveToStorage('newsVeilleSettings', settings);
+            
+            // Hide modal
+            hideModal('settings-modal');
+            
+            // Show confirmation
+            updateStatus('Settings saved');
+            setTimeout(() => updateStatus('Ready'), 2000);
+        }
+
+        // ===== IMPORT/EXPORT =====
+        function exportData() {
+            const data = {
+                articles: articles,
+                settings: settings,
+                version: '1.0',
+                exportDate: new Date().toISOString()
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `news-veille-backup-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            
+            URL.revokeObjectURL(url);
+        }
+
+        function importData() {
+            document.getElementById('import-file').click();
+        }
+
+        function handleImportFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    
+                    if (data.articles) {
+                        articles = data.articles;
+                        saveToStorage('newsVeilleArticles', articles);
+                    }
+                    
+                    if (data.settings) {
+                        settings = { ...defaultSettings, ...data.settings };
+                        saveToStorage('newsVeilleSettings', settings);
+                    }
+                    
+                    updateLanguage(settings.language);
+                    updateUI();
+                    
+                    alert('Data imported successfully!');
+                } catch (error) {
+                    alert('Import failed: Invalid file format');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // ===== AUTO-REFRESH =====
+        let refreshInterval = null;
+
+        function startAutoRefresh() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+            
+            refreshInterval = setInterval(() => {
+                fetchAllNews();
+            }, settings.refreshInterval * 60 * 1000);
+        }
+
+        function stopAutoRefresh() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+                refreshInterval = null;
+            }
+        }
+
+        // ===== UI HELPERS =====
+        function showModal(modalId) {
+            document.getElementById(modalId).style.display = 'flex';
+            if (modalId === 'settings-modal') {
+                loadSettings();
+            }
+        }
+
+        function hideModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        function updateStatus(message) {
+            document.getElementById('status-text').textContent = message;
+        }
+
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMins = Math.floor(diffMs / 60000);
+            const diffHours = Math.floor(diffMs / 3600000);
+            const diffDays = Math.floor(diffMs / 86400000);
+            
+            if (diffMins < 60) {
+                return `${diffMins}m ago`;
+            } else if (diffHours < 24) {
+                return `${diffHours}h ago`;
+            } else if (diffDays < 7) {
+                return `${diffDays}d ago`;
+            } else {
+                return date.toLocaleDateString(settings.language);
+            }
+        }
+
+        // ===== EVENT LISTENERS =====
+        function setupEventListeners() {
+            // Theme toggle
+            document.getElementById('theme-toggle').addEventListener('click', () => {
+                settings.theme = settings.theme === 'light' ? 'dark' : 'light';
+                document.documentElement.setAttribute('data-theme', settings.theme);
+                saveSettings();
+            });
+            
+            // Language selector
+            document.getElementById('language-selector').addEventListener('change', (e) => {
+                updateLanguage(e.target.value);
+                saveSettings();
+            });
+            
+            // Navigation
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    switchView(tab.getAttribute('data-view'));
+                });
+            });
+            
+            // Search and filters
+            document.getElementById('search-input').addEventListener('input', updateUI);
+            document.getElementById('source-filter').addEventListener('change', updateUI);
+            document.getElementById('sentiment-filter').addEventListener('change', updateUI);
+            document.getElementById('unread-only-filter').addEventListener('change', updateUI);
+            
+            // Batch actions
+            document.getElementById('batch-actions-btn').addEventListener('click', () => {
+                if (selectedArticles.size > 0) {
+                    showModal('batch-modal');
+                } else {
+                    alert('Please select articles first');
+                }
+            });
+            
+            document.getElementById('batch-mark-read').addEventListener('click', () => performBatchAction('markRead'));
+            document.getElementById('batch-add-favorite').addEventListener('click', () => performBatchAction('addFavorite'));
+            document.getElementById('batch-read-later').addEventListener('click', () => performBatchAction('addReadLater'));
+            document.getElementById('batch-add-tag').addEventListener('click', () => performBatchAction('addTag'));
+            
+            // Settings
+            document.getElementById('settings-btn').addEventListener('click', () => showModal('settings-modal'));
+            document.getElementById('close-settings').addEventListener('click', () => hideModal('settings-modal'));
+            document.getElementById('save-settings-btn').addEventListener('click', saveSettings);
+            
+            // Encryption toggle
+            document.getElementById('encryption-enabled').addEventListener('change', (e) => {
+                document.getElementById('encryption-passphrase').style.display = e.target.checked ? 'block' : 'none';
+            });
+            
+            // RSS sources
+            document.getElementById('add-source-btn').addEventListener('click', addNewSource);
+            
+            // Import/Export
+            document.getElementById('export-data-btn').addEventListener('click', exportData);
+            document.getElementById('import-data-btn').addEventListener('click', importData);
+            document.getElementById('import-file').addEventListener('change', handleImportFile);
+            
+            // Refresh
+            document.getElementById('refresh-btn').addEventListener('click', () => {
+                fetchAllNews();
+                userInteracted = true;
+            });
+            
+            // Modals
+            document.getElementById('close-summary').addEventListener('click', () => hideModal('summary-modal'));
+            document.getElementById('close-batch').addEventListener('click', () => hideModal('batch-modal'));
+            document.getElementById('start-tour-btn').addEventListener('click', () => hideModal('onboarding-modal'));
+            
+            // Click outside modal to close
+            document.querySelectorAll('.modal').forEach(modal => {
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        modal.style.display = 'none';
+                    }
+                });
+            });
+            
+            // Mobile FAB
+            document.getElementById('mobile-fab').addEventListener('click', () => {
+                showModal('settings-modal');
+            });
+            
+            // User interaction detection
+            document.addEventListener('click', () => {
+                userInteracted = true;
+            }, { once: true });
+            
+            // Request notification permission
+            if ('Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
+            
+            // Setup keyboard shortcuts
+            setupKeyboardShortcuts();
+        }
+
+        // ===== ELECTRON/TAURI HOOKS =====
+        // ELECTRON_MAIN_JS: Add this to your Electron main.js:
+        /*
+        const { app, BrowserWindow, Tray, nativeImage, globalShortcut, Menu } = require('electron');
+        const path = require('path');
+
+        let mainWindow;
+        let tray;
+
+        function createWindow() {
+            mainWindow = new BrowserWindow({
+                width: 1200,
+                height: 800,
+                webPreferences: {
+                    nodeIntegration: false,
+                    contextIsolation: true
+                },
+                icon: path.join(__dirname, 'assets/icon.png')
+            });
+
+            mainWindow.loadFile('news-veille-pro.html');
+
+            // Hide to tray instead of closing
+            mainWindow.on('close', (event) => {
+                if (!app.isQuiting) {
+                    event.preventDefault();
+                    mainWindow.hide();
+                }
+            });
+        }
+
+        function createTray() {
+            tray = new Tray(path.join(__dirname, 'assets/tray-icon.png'));
+            
+            const contextMenu = Menu.buildFromTemplate([
+                { label: 'Show', click: () => mainWindow.show() },
+                { label: 'Quit', click: () => { app.isQuiting = true; app.quit(); } }
+            ]);
+            
+            tray.setContextMenu(contextMenu);
+            tray.on('click', () => mainWindow.show());
+        }
+
+        function updateTrayBadge(count) {
+            if (count > 0) {
+                tray.setTitle(count.toString());
+                app.setBadgeCount(count); // macOS
+            } else {
+                tray.setTitle('');
+                app.setBadgeCount(0);
+            }
+        }
+
+        app.whenReady().then(() => {
+            createWindow();
+            createTray();
+            
+            // Global hotkey
+            globalShortcut.register('CommandOrControl+Shift+N', () => {
+                mainWindow.show();
+            });
+            
+            // Auto-start (uncomment to enable)
+            // app.setLoginItemSettings({
+            //     openAtLogin: true
+            // });
+        });
+
+        app.on('window-all-closed', () => {
+            if (process.platform !== 'darwin') app.quit();
+        });
+
+        // Expose updateTrayBadge to renderer process
+        // Add IPC handlers as needed
+        */
+
+        // ===== TAURI HOOKS =====
+        // Add to tauri.conf.json for system tray:
+        /*
+        {
+            "tauri": {
+                "systemTray": {
+                    "iconPath": "icons/tray-icon.png",
+                    "iconAsTemplate": true
+                }
+            }
+        }
+        */
+
+        // ===== INITIALIZATION =====
+        document.addEventListener('DOMContentLoaded', initializeApp);
+
+        // ===== GLOBAL FUNCTIONS FOR HTML ONCLICK =====
+        window.openArticle = openArticle;
+        window.toggleRead = toggleRead;
+        window.toggleFavorite = toggleFavorite;
+        window.toggleReadLater = toggleReadLater;
+        window.toggleTTS = toggleTTS;
+        window.generateSummary = generateSummary;
+        window.toggleArticleSelection = toggleArticleSelection;
+        window.expandCluster = expandCluster;
+        window.performBatchAction = performBatchAction;
+        window.undoBatchAction = undoBatchAction;
+        window.toggleSource = toggleSource;
+        window.updateSourceName = updateSourceName;
+        window.updateSourceURL = updateSourceURL;
+        window.updateSourceInterval = updateSourceInterval;
+        window.removeSource = removeSource;
+    </script>
+</body>
+</html>
