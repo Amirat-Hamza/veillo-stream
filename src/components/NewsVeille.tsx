@@ -3,12 +3,14 @@ import { NewsCard } from './NewsCard';
 import { Dashboard } from './Dashboard';
 import { SearchAndFilters } from './SearchAndFilters';
 import { Header } from './Header';
+import { Settings } from './Settings';
 import { useNewsData } from '@/hooks/useNewsData';
 import { useToast } from '@/hooks/use-toast';
 import { ThemeProvider } from 'next-themes';
 
 export const NewsVeille = () => {
   const [showDashboard, setShowDashboard] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSource, setSelectedSource] = useState('all');
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -110,12 +112,15 @@ export const NewsVeille = () => {
           onToggleDashboard={() => setShowDashboard(!showDashboard)}
           showDashboard={showDashboard}
           onExport={handleExport}
+          onShowSettings={() => setShowSettings(!showSettings)}
           totalArticles={articles.length}
           unreadCount={unreadCount}
         />
 
         <main className="container mx-auto px-4 py-6">
-          {showDashboard ? (
+          {showSettings ? (
+            <Settings />
+          ) : showDashboard ? (
             <Dashboard stats={stats} />
           ) : (
             <div className="space-y-6">

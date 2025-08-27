@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useTheme } from 'next-themes';
-import { RefreshCw, Sun, Moon, Download, BarChart3 } from 'lucide-react';
+import { RefreshCw, Sun, Moon, Download, BarChart3, Settings } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface HeaderProps {
@@ -11,6 +11,7 @@ interface HeaderProps {
   onToggleDashboard: () => void;
   showDashboard: boolean;
   onExport: () => void;
+  onShowSettings: () => void;
   totalArticles: number;
   unreadCount: number;
 }
@@ -22,6 +23,7 @@ export const Header = ({
   onToggleDashboard,
   showDashboard,
   onExport,
+  onShowSettings,
   totalArticles,
   unreadCount,
 }: HeaderProps) => {
@@ -86,6 +88,16 @@ export const Header = ({
             >
               <Download className="h-4 w-4" />
               <span className="hidden sm:inline">Export</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onShowSettings}
+              className="gap-2"
+            >
+              <Settings className="h-4 w-4" />
+              <span className="hidden sm:inline">Settings</span>
             </Button>
 
             <Button

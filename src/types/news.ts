@@ -13,6 +13,8 @@ export interface NewsSource {
   name: string;
   url: string;
   category: string;
+  enabled?: boolean;
+  interval?: number;
 }
 
 export interface ReadingStats {
