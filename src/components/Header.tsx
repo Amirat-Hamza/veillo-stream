@@ -54,7 +54,13 @@ export const Header = ({
             {lastUpdate && (
               <div className="hidden md:block text-xs text-muted-foreground">
                 <div>Last update: {format(lastUpdate, 'HH:mm')}</div>
-                <div className="text-xs opacity-75">📅 24h articles loaded</div>
+                <div className="text-xs opacity-75">
+                  {(() => {
+                    const settings = JSON.parse(localStorage.getItem('newsVeilleSettings') || '{}');
+                    const hrs = settings.timeRange || 48;
+                    return `📅 last ${hrs}h loaded`;
+                  })()}
+                </div>
               </div>
             )}
 

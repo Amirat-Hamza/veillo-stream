@@ -16,6 +16,14 @@ export const NewsVeille = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
   const [timeRange, setTimeRange] = useState(48);
+
+  useEffect(() => {
+    const s = JSON.parse(localStorage.getItem('newsVeilleSettings') || '{}');
+    if (typeof s.timeRange !== 'number') {
+      s.timeRange = 48;
+      localStorage.setItem('newsVeilleSettings', JSON.stringify(s));
+    }
+  }, []);
   
   const { articles, loading, lastUpdate, markAsRead, refreshNews, getReadingStats } = useNewsData();
   const { toast } = useToast();
@@ -108,7 +116,7 @@ export const NewsVeille = () => {
       <div className="min-h-screen bg-background">
         <Header
           lastUpdate={lastUpdate}
-          onRefresh={refreshNews}
+          onRefresh={() => refreshNews()}
           isLoading={loading}
           onToggleDashboard={() => setShowDashboard(!showDashboard)}
           showDashboard={showDashboard}
@@ -140,6 +148,7 @@ export const NewsVeille = () => {
                   const settings = JSON.parse(localStorage.getItem('newsVeilleSettings') || '{}');
                   settings.timeRange = hours;
                   localStorage.setItem('newsVeilleSettings', JSON.stringify(settings));
+                  refreshNews(true);
                 }}
                 sources={sources}
                 categories={categories}
