@@ -13,6 +13,8 @@ interface SearchAndFiltersProps {
   onCategoryChange: (category: string) => void;
   showUnreadOnly: boolean;
   onUnreadOnlyChange: (show: boolean) => void;
+  timeRange: number;
+  onTimeRangeChange: (hours: number) => void;
   sources: string[];
   categories: string[];
 }
@@ -26,6 +28,8 @@ export const SearchAndFilters = ({
   onCategoryChange,
   showUnreadOnly,
   onUnreadOnlyChange,
+  timeRange,
+  onTimeRangeChange,
   sources,
   categories,
 }: SearchAndFiltersProps) => {
@@ -77,6 +81,18 @@ export const SearchAndFilters = ({
             {categories.map(category => (
               <SelectItem key={category} value={category}>{category}</SelectItem>
             ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={timeRange.toString()} onValueChange={(value) => onTimeRangeChange(parseInt(value))}>
+          <SelectTrigger className="w-24">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="12">12h</SelectItem>
+            <SelectItem value="24">24h</SelectItem>
+            <SelectItem value="36">36h</SelectItem>
+            <SelectItem value="48">48h</SelectItem>
           </SelectContent>
         </Select>
 

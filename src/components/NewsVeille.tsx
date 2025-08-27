@@ -15,6 +15,7 @@ export const NewsVeille = () => {
   const [selectedSource, setSelectedSource] = useState('all');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
+  const [timeRange, setTimeRange] = useState(48);
   
   const { articles, loading, lastUpdate, markAsRead, refreshNews, getReadingStats } = useNewsData();
   const { toast } = useToast();
@@ -133,6 +134,13 @@ export const NewsVeille = () => {
                 onCategoryChange={setSelectedCategory}
                 showUnreadOnly={showUnreadOnly}
                 onUnreadOnlyChange={setShowUnreadOnly}
+                timeRange={timeRange}
+                onTimeRangeChange={(hours) => {
+                  setTimeRange(hours);
+                  const settings = JSON.parse(localStorage.getItem('newsVeilleSettings') || '{}');
+                  settings.timeRange = hours;
+                  localStorage.setItem('newsVeilleSettings', JSON.stringify(settings));
+                }}
                 sources={sources}
                 categories={categories}
               />

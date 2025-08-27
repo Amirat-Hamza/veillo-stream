@@ -181,12 +181,14 @@ export const useNewsData = () => {
       const enabledSources = NEWS_SOURCES.filter(source => source.enabled !== false);
       
       const now = new Date();
+      const settings = JSON.parse(localStorage.getItem('newsVeilleSettings') || '{}');
+      const timeRangeHours = settings.timeRange || 48; // Default to 48 hours
       const timeThreshold = isInitialLoad 
-        ? new Date(now.getTime() - 24 * 60 * 60 * 1000) // Last 24 hours
+        ? new Date(now.getTime() - timeRangeHours * 60 * 60 * 1000) // User selected time range
         : new Date(now.getTime() - 2 * 60 * 60 * 1000); // Last 2 hours for refreshes
       
       console.log(`Fetching from ${enabledSources.length} enabled sources`);
-      console.log(`Time threshold: ${timeThreshold.toISOString()} (${isInitialLoad ? 'last 24h' : 'last 2h'})`);
+      console.log(`Time threshold: ${timeThreshold.toISOString()} (${isInitialLoad ? `last ${timeRangeHours}h` : 'last 2h'})`);
       
       const results = await Promise.allSettled(
         enabledSources.map(async (source) => {
