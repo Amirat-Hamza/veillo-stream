@@ -212,6 +212,10 @@ export const useNewsData = () => {
             const sourceArticles = await parseRSSFeed(source);
             console.log(`Got ${sourceArticles.length} total articles from ${source.name}`);
             const recentArticles = sourceArticles.filter(article => {
+              if (timeRangeHours === 0) {
+                // 0 hours means "All time" (no time filtering)
+                return !!article.link;
+              }
               const articleDate = new Date(article.pubDate);
               const isRecent = articleDate >= timeThreshold && article.link;
               if (!isRecent) {

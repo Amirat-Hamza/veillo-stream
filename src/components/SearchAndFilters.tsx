@@ -85,10 +85,11 @@ export const SearchAndFilters = ({
         </Select>
 
         <Select value={timeRange.toString()} onValueChange={(value) => onTimeRangeChange(parseInt(value))}>
-          <SelectTrigger className="w-24">
-            <SelectValue />
+          <SelectTrigger className="w-28">
+            <SelectValue placeholder="Time range" />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="0">All</SelectItem>
             <SelectItem value="12">12h</SelectItem>
             <SelectItem value="24">24h</SelectItem>
             <SelectItem value="36">36h</SelectItem>
