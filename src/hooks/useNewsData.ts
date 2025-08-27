@@ -8,7 +8,13 @@ const NEWS_SOURCES: NewsSource[] = [
   { name: 'Mosaique FM', url: 'https://www.mosaiquefm.net/rss', category: 'Tunisia' },
 ];
 
-const CORS_PROXY = 'https://api.allorigins.win/get?url=';
+// Multiple CORS proxy services as fallbacks
+const CORS_PROXIES = [
+  'https://api.allorigins.win/get?url=',
+  'https://cors.lol/',
+  'https://cors-anywhere.herokuapp.com/',
+  'https://thingproxy.freeboard.io/fetch/'
+];
 
 export const useNewsData = () => {
   const [articles, setArticles] = useState<NewsArticle[]>([]);
@@ -16,45 +22,164 @@ export const useNewsData = () => {
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
   const parseRSSFeed = async (source: NewsSource): Promise<NewsArticle[]> => {
-    try {
-      const response = await fetch(`${CORS_PROXY}${encodeURIComponent(source.url)}`);
-      const data = await response.json();
-      const parser = new DOMParser();
-      const xmlDoc = parser.parseFromString(data.contents, 'text/xml');
+    console.log(`Attempting to fetch ${source.name} from ${source.url}`);
+    
+    // Try each CORS proxy until one works
+    for (let i = 0; i < CORS_PROXIES.length; i++) {
+      const proxy = CORS_PROXIES[i];
+      console.log(`Trying proxy ${i + 1}/${CORS_PROXIES.length}: ${proxy}`);
       
-      const items = xmlDoc.querySelectorAll('item');
-      return Array.from(items).map((item, index) => {
-        const title = item.querySelector('title')?.textContent || '';
-        const description = item.querySelector('description')?.textContent || '';
-        const link = item.querySelector('link')?.textContent || '';
-        const pubDate = item.querySelector('pubDate')?.textContent || new Date().toISOString();
+      try {
+        let response;
+        let data;
         
-        return {
-          id: `${source.name}-${index}-${Date.now()}`,
-          title: title.replace(/<!\[CDATA\[|\]\]>/g, ''),
-          description: description.replace(/<!\[CDATA\[|\]\]>/g, '').replace(/<[^>]*>/g, ''),
-          link,
-          pubDate,
-          source: source.name,
-          category: source.category,
-          isRead: false,
-        };
-      });
-    } catch (error) {
-      console.error(`Error fetching ${source.name}:`, error);
-      return [];
+        if (proxy.includes('allorigins.win')) {
+          // AllOrigins format
+          response = await fetch(`${proxy}${encodeURIComponent(source.url)}`, {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/json',
+            }
+          });
+          
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+          
+          const jsonData = await response.json();
+          data = jsonData.contents;
+        } else if (proxy.includes('cors.lol')) {
+          // CORS.lol format
+          response = await fetch(`${proxy}${source.url}`, {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/rss+xml, application/xml, text/xml',
+            }
+          });
+          
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+          
+          data = await response.text();
+        } else {
+          // Standard proxy format
+          response = await fetch(`${proxy}${source.url}`, {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/rss+xml, application/xml, text/xml',
+            }
+          });
+          
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          }
+          
+          data = await response.text();
+        }
+        
+        console.log(`Successfully fetched from ${source.name} using proxy ${i + 1}`);
+        
+        // Parse the RSS data
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(data, 'text/xml');
+        
+        // Check for XML parsing errors
+        const parseError = xmlDoc.querySelector('parsererror');
+        if (parseError) {
+          throw new Error('XML parsing error: ' + parseError.textContent);
+        }
+        
+        const items = xmlDoc.querySelectorAll('item');
+        console.log(`Found ${items.length} items in ${source.name} RSS feed`);
+        
+        if (items.length === 0) {
+          console.warn(`No items found in RSS feed for ${source.name}`);
+        }
+        
+        return Array.from(items).map((item, index) => {
+          const title = item.querySelector('title')?.textContent || '';
+          const description = item.querySelector('description')?.textContent || '';
+          const link = item.querySelector('link')?.textContent || '';
+          const pubDate = item.querySelector('pubDate')?.textContent || new Date().toISOString();
+          
+          return {
+            id: `${source.name}-${index}-${Date.now()}`,
+            title: title.replace(/<!\[CDATA\[|\]\]>/g, '').trim(),
+            description: description.replace(/<!\[CDATA\[|\]\]>/g, '').replace(/<[^>]*>/g, '').trim(),
+            link,
+            pubDate,
+            source: source.name,
+            category: source.category,
+            isRead: false,
+          };
+        });
+        
+      } catch (error) {
+        console.error(`Proxy ${i + 1} failed for ${source.name}:`, error);
+        
+        // If this is the last proxy, throw the error
+        if (i === CORS_PROXIES.length - 1) {
+          throw error;
+        }
+        
+        // Otherwise, continue to next proxy
+        continue;
+      }
     }
+    
+    // This should never be reached, but just in case
+    return [];
   };
 
   const fetchAllNews = useCallback(async () => {
+    console.log('Starting to fetch all news...');
     setLoading(true);
     try {
       const allArticles: NewsArticle[] = [];
+      const enabledSources = NEWS_SOURCES.filter(source => source.enabled !== false);
       
-      for (const source of NEWS_SOURCES) {
-        const sourceArticles = await parseRSSFeed(source);
-        allArticles.push(...sourceArticles);
+      console.log(`Fetching from ${enabledSources.length} enabled sources`);
+      
+      // Add some demo articles first for immediate display
+      const demoArticles: NewsArticle[] = [
+        {
+          id: 'demo-1',
+          title: 'Welcome to News Veille Pro - Your Professional News Aggregator',
+          description: 'News Veille Pro is fetching your RSS feeds. This demo article shows how articles will appear once feeds are loaded. Click on articles to mark as read, add to favorites, or use AI features.',
+          link: 'https://example.com',
+          pubDate: new Date().toISOString(),
+          source: 'News Veille Pro',
+          category: 'Demo',
+          isRead: false,
+        },
+        {
+          id: 'demo-2',
+          title: 'RSS Feeds Loading - Multiple CORS Proxies Being Tested',
+          description: 'The app is trying multiple CORS proxy services to fetch your RSS feeds. Check the browser console for detailed logs of the fetching process.',
+          link: 'https://example.com',
+          pubDate: new Date(Date.now() - 60000).toISOString(),
+          source: 'System',
+          category: 'Technical',
+          isRead: false,
+        }
+      ];
+      
+      allArticles.push(...demoArticles);
+      
+      for (const source of enabledSources) {
+        console.log(`Fetching from ${source.name}...`);
+        try {
+          const sourceArticles = await parseRSSFeed(source);
+          console.log(`Got ${sourceArticles.length} articles from ${source.name}`);
+          allArticles.push(...sourceArticles);
+        } catch (error) {
+          console.error(`Failed to fetch from ${source.name}:`, error);
+          // Continue with other sources even if one fails
+        }
       }
+
+      console.log(`Total articles fetched: ${allArticles.length}`);
 
       // Sort by date (newest first)
       allArticles.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
@@ -66,6 +191,7 @@ export const useNewsData = () => {
         isRead: readArticles.includes(article.link),
       }));
 
+      console.log(`Setting ${articlesWithReadStatus.length} articles with read status`);
       setArticles(articlesWithReadStatus);
       setLastUpdate(new Date());
     } catch (error) {
