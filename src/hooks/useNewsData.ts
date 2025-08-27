@@ -8,10 +8,8 @@ const NEWS_SOURCES: NewsSource[] = [
   { name: 'Mosaique FM', url: 'https://www.mosaiquefm.net/rss', category: 'Tunisia' },
 ];
 
-// Multiple CORS proxy services as fallbacks (prioritize ones that work reliably)
+// Multiple CORS proxy services as fallbacks (prioritize raw XML to avoid item limits)
 const CORS_PROXIES = [
-  // JSON RSS transformation (very reliable, no CORS issues; different parsing path)
-  'https://api.rss2json.com/v1/api.json?rss_url=',
   // AllOrigins raw passthrough (raw XML)
   'https://api.allorigins.win/raw?url=',
   // AllOrigins JSON wrapper (we handle .contents)
@@ -20,7 +18,10 @@ const CORS_PROXIES = [
   'https://thingproxy.freeboard.io/fetch/',
   'https://cors.lol/',
   'https://cors-anywhere.herokuapp.com/',
+  // JSON RSS transformation (fallback: may limit items)
+  'https://api.rss2json.com/v1/api.json?rss_url=',
 ];
+
 
 // Add a small timeout to avoid being stuck on a slow proxy/feed
 const REQUEST_TIMEOUT_MS = 8000; // 8s per attempt
@@ -59,7 +60,7 @@ export const useNewsData = () => {
         const doFetch = (url: string, init: RequestInit) => fetchWithTimeout(url, init);
         if (proxy.includes('rss2json.com')) {
           // RSS2JSON returns JSON with items array
-          response = await doFetch(`${proxy}${encodeURIComponent(source.url)}`, {
+          response = await doFetch(`${proxy}${encodeURIComponent(source.url)}&count=100`, {
             method: 'GET',
             headers: {
               'Accept': 'application/json',
@@ -178,10 +179,14 @@ export const useNewsData = () => {
     setLoading(true);
     try {
       const allArticles: NewsArticle[] = [];
-      const enabledSources = NEWS_SOURCES.filter(source => source.enabled !== false);
       
       const now = new Date();
       const settings = JSON.parse(localStorage.getItem('newsVeilleSettings') || '{}');
+      const configuredSources: NewsSource[] = (Array.isArray(settings.rssSources) && settings.rssSources.length > 0)
+        ? settings.rssSources
+        : NEWS_SOURCES;
+      const enabledSources = configuredSources.filter(source => source.enabled !== false);
+      
       const timeRangeHours = settings.timeRange || 48; // Default to 48 hours
       const timeThreshold = new Date(now.getTime() - timeRangeHours * 60 * 60 * 1000);
       

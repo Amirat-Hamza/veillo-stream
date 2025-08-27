@@ -48,6 +48,15 @@ export const NewsVeille = () => {
     }
   }, [articles, lastUpdate]);
 
+  // Refresh when sources are updated from Settings (custom event)
+  useEffect(() => {
+    const handler: EventListener = () => {
+      refreshNews(true);
+    };
+    window.addEventListener('newsVeille:sourcesUpdated', handler);
+    return () => window.removeEventListener('newsVeille:sourcesUpdated', handler);
+  }, [refreshNews]);
+
   const handleArticleRead = (link: string) => {
     markAsRead(link);
     toast({

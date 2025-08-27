@@ -113,10 +113,19 @@ export const Settings = () => {
       interval: 15
     };
 
-    setSettings(prev => ({
-      ...prev,
-      rssSources: [...prev.rssSources, source]
-    }));
+    // Update state and persist immediately so the app can react
+    const updated = {
+      ...settings,
+      rssSources: [...settings.rssSources, source]
+    };
+    setSettings(updated);
+    try {
+      localStorage.setItem('newsVeilleSettings', JSON.stringify(updated));
+      // Notify the app to refresh sources and fetch articles for the new feed
+      window.dispatchEvent(new CustomEvent('newsVeille:sourcesUpdated'));
+    } catch (e) {
+      console.error('Failed to persist new source', e);
+    }
 
     setNewSource({ name: '', url: '', category: 'General' });
 
