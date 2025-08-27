@@ -16,6 +16,7 @@ export const NewsVeille = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
   const [timeRange, setTimeRange] = useState(48);
+  const [availableSources, setAvailableSources] = useState<string[]>([]);
 
   useEffect(() => {
     const s = JSON.parse(localStorage.getItem('newsVeilleSettings') || '{}');
@@ -56,6 +57,18 @@ export const NewsVeille = () => {
     window.addEventListener('newsVeille:sourcesUpdated', handler);
     return () => window.removeEventListener('newsVeille:sourcesUpdated', handler);
   }, [refreshNews]);
+
+  // Build available sources from settings and articles
+  useEffect(() => {
+    const names = new Set<string>(articles.map(a => a.source));
+    try {
+      const s = JSON.parse(localStorage.getItem('newsVeilleSettings') || '{}');
+      if (Array.isArray(s.rssSources)) {
+        s.rssSources.forEach((src: any) => { if (src?.name) names.add(src.name); });
+      }
+    } catch {}
+    setAvailableSources(Array.from(names).sort());
+  }, [articles, showSettings, lastUpdate]);
 
   const handleArticleRead = (link: string) => {
     markAsRead(link);
@@ -107,10 +120,6 @@ export const NewsVeille = () => {
     });
   }, [articles, searchTerm, selectedSource, selectedCategory, showUnreadOnly]);
 
-  const sources = useMemo(() => 
-    [...new Set(articles.map(a => a.source))].sort(), 
-    [articles]
-  );
 
   const categories = useMemo(() => 
     [...new Set(articles.map(a => a.category).filter(Boolean))].sort(), 
@@ -159,7 +168,7 @@ export const NewsVeille = () => {
                   localStorage.setItem('newsVeilleSettings', JSON.stringify(settings));
                   refreshNews(true);
                 }}
-                sources={sources}
+                sources={availableSources}
                 categories={categories}
               />
 

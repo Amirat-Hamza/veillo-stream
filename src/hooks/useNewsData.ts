@@ -10,6 +10,8 @@ const NEWS_SOURCES: NewsSource[] = [
 
 // Multiple CORS proxy services as fallbacks (prioritize raw XML to avoid item limits)
 const CORS_PROXIES = [
+  // Jina AI text proxy (very reliable, raw content)
+  'https://r.jina.ai/',
   // AllOrigins raw passthrough (raw XML)
   'https://api.allorigins.win/raw?url=',
   // AllOrigins JSON wrapper (we handle .contents)
@@ -24,7 +26,7 @@ const CORS_PROXIES = [
 
 
 // Add a small timeout to avoid being stuck on a slow proxy/feed
-const REQUEST_TIMEOUT_MS = 8000; // 8s per attempt
+const REQUEST_TIMEOUT_MS = 15000; // 15s per attempt
 
 const fetchWithTimeout = async (
   input: RequestInfo | URL,
@@ -60,7 +62,7 @@ export const useNewsData = () => {
         const doFetch = (url: string, init: RequestInit) => fetchWithTimeout(url, init);
         if (proxy.includes('rss2json.com')) {
           // RSS2JSON returns JSON with items array
-          response = await doFetch(`${proxy}${encodeURIComponent(source.url)}&count=100`, {
+          response = await doFetch(`${proxy}${encodeURIComponent(source.url)}`, {
             method: 'GET',
             headers: {
               'Accept': 'application/json',
@@ -102,6 +104,16 @@ export const useNewsData = () => {
         } else if (proxy.includes('allorigins.win/raw')) {
           // AllOrigins raw passthrough
           response = await doFetch(`${proxy}${encodeURIComponent(source.url)}`, {
+            method: 'GET',
+            headers: {
+              'Accept': 'application/rss+xml, application/xml, text/xml',
+            }
+          });
+          if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+          data = await response.text();
+        } else if (proxy.includes('r.jina.ai')) {
+          const proxiedUrl = `https://r.jina.ai/${source.url}`;
+          response = await doFetch(proxiedUrl, {
             method: 'GET',
             headers: {
               'Accept': 'application/rss+xml, application/xml, text/xml',
