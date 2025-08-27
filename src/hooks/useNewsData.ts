@@ -10,10 +10,10 @@ const NEWS_SOURCES: NewsSource[] = [
 
 // Multiple CORS proxy services as fallbacks (prioritize ones that work reliably)
 const CORS_PROXIES = [
-  // Returns raw XML (best for RSS parsing)
-  'https://api.allorigins.win/raw?url=',
-  // JSON RSS transformation (no CORS issues; different parsing path)
+  // JSON RSS transformation (very reliable, no CORS issues; different parsing path)
   'https://api.rss2json.com/v1/api.json?rss_url=',
+  // AllOrigins raw passthrough (raw XML)
+  'https://api.allorigins.win/raw?url=',
   // AllOrigins JSON wrapper (we handle .contents)
   'https://api.allorigins.win/get?url=',
   // Other generic proxies
@@ -21,6 +21,24 @@ const CORS_PROXIES = [
   'https://cors.lol/',
   'https://cors-anywhere.herokuapp.com/',
 ];
+
+// Add a small timeout to avoid being stuck on a slow proxy/feed
+const REQUEST_TIMEOUT_MS = 8000; // 8s per attempt
+
+const fetchWithTimeout = async (
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+  timeout = REQUEST_TIMEOUT_MS
+): Promise<Response> => {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+  try {
+    const resp = await fetch(input, { ...init, signal: controller.signal });
+    return resp;
+  } finally {
+    clearTimeout(id);
+  }
+};
 
 export const useNewsData = () => {
   const [articles, setArticles] = useState<NewsArticle[]>([]);
@@ -38,9 +56,10 @@ export const useNewsData = () => {
         let response;
         let data: string | any;
 
+        const doFetch = (url: string, init: RequestInit) => fetchWithTimeout(url, init);
         if (proxy.includes('rss2json.com')) {
           // RSS2JSON returns JSON with items array
-          response = await fetch(`${proxy}${encodeURIComponent(source.url)}`, {
+          response = await doFetch(`${proxy}${encodeURIComponent(source.url)}`, {
             method: 'GET',
             headers: {
               'Accept': 'application/json',
@@ -70,7 +89,7 @@ export const useNewsData = () => {
           });
         } else if (proxy.includes('allorigins.win/get')) {
           // AllOrigins JSON wrapper
-          response = await fetch(`${proxy}${encodeURIComponent(source.url)}`, {
+          response = await doFetch(`${proxy}${encodeURIComponent(source.url)}`, {
             method: 'GET',
             headers: {
               'Accept': 'application/json',
@@ -81,7 +100,7 @@ export const useNewsData = () => {
           data = jsonData.contents as string;
         } else if (proxy.includes('allorigins.win/raw')) {
           // AllOrigins raw passthrough
-          response = await fetch(`${proxy}${encodeURIComponent(source.url)}`, {
+          response = await doFetch(`${proxy}${encodeURIComponent(source.url)}`, {
             method: 'GET',
             headers: {
               'Accept': 'application/rss+xml, application/xml, text/xml',
@@ -91,7 +110,7 @@ export const useNewsData = () => {
           data = await response.text();
         } else {
           // Standard proxy format
-          response = await fetch(`${proxy}${source.url}`, {
+          response = await doFetch(`${proxy}${source.url}`, {
             method: 'GET',
             headers: {
               'Accept': 'application/rss+xml, application/xml, text/xml',
@@ -169,27 +188,34 @@ export const useNewsData = () => {
       console.log(`Fetching from ${enabledSources.length} enabled sources`);
       console.log(`Time threshold: ${timeThreshold.toISOString()} (${isInitialLoad ? 'last 24h' : 'last 2h'})`);
       
-      for (const source of enabledSources) {
-        console.log(`Fetching from ${source.name}...`);
-        try {
-          const sourceArticles = await parseRSSFeed(source);
-          console.log(`Got ${sourceArticles.length} total articles from ${source.name}`);
-          
-          const recentArticles = sourceArticles.filter(article => {
-            const articleDate = new Date(article.pubDate);
-            const isRecent = articleDate >= timeThreshold && article.link;
-            if (!isRecent) {
-              console.log(`Filtering out old/invalid article: ${article.title} (${articleDate.toISOString()})`);
-            }
-            return isRecent;
-          });
-          
-          console.log(`Filtered to ${recentArticles.length} recent articles from ${source.name}`);
-          allArticles.push(...recentArticles);
-        } catch (error) {
-          console.error(`Failed to fetch from ${source.name}:`, error);
+      const results = await Promise.allSettled(
+        enabledSources.map(async (source) => {
+          console.log(`Fetching from ${source.name}...`);
+          try {
+            const sourceArticles = await parseRSSFeed(source);
+            console.log(`Got ${sourceArticles.length} total articles from ${source.name}`);
+            const recentArticles = sourceArticles.filter(article => {
+              const articleDate = new Date(article.pubDate);
+              const isRecent = articleDate >= timeThreshold && article.link;
+              if (!isRecent) {
+                console.log(`Filtering out old/invalid article: ${article.title} (${articleDate.toISOString()})`);
+              }
+              return isRecent;
+            });
+            console.log(`Filtered to ${recentArticles.length} recent articles from ${source.name}`);
+            return recentArticles;
+          } catch (error) {
+            console.error(`Failed to fetch from ${source.name}:`, error);
+            return [] as NewsArticle[];
+          }
+        })
+      );
+
+      results.forEach((res) => {
+        if (res.status === 'fulfilled') {
+          allArticles.push(...res.value);
         }
-      }
+      });
 
       console.log(`Total recent articles fetched: ${allArticles.length}`);
 
