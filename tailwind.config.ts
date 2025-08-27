@@ -52,6 +52,11 @@ export default {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
 				},
+				news: {
+					read: 'hsl(var(--news-read))',
+					unread: 'hsl(var(--news-unread))',
+					highlight: 'hsl(var(--news-highlight))'
+				},
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
 					foreground: 'hsl(var(--sidebar-foreground))',
