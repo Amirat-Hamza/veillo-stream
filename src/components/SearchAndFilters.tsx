@@ -17,6 +17,7 @@ interface SearchAndFiltersProps {
   onTimeRangeChange: (hours: number) => void;
   sources: string[];
   categories: string[];
+  filteredArticles: any[]; // Articles matching current filters
 }
 
 export const SearchAndFilters = ({
@@ -32,8 +33,14 @@ export const SearchAndFilters = ({
   onTimeRangeChange,
   sources,
   categories,
+  filteredArticles,
 }: SearchAndFiltersProps) => {
   const hasActiveFilters = selectedSource !== 'all' || selectedCategory !== 'all' || showUnreadOnly || timeRange > 0;
+  
+  // Calculate article counts
+  const totalCount = filteredArticles.length;
+  const unreadCount = filteredArticles.filter(article => !article.isRead).length;
+  const readCount = totalCount - unreadCount;
 
   const clearFilters = () => {
     onSourceChange('all');
@@ -55,11 +62,12 @@ export const SearchAndFilters = ({
         />
       </div>
 
-      <div className="flex flex-wrap gap-3 items-center">
-        <div className="flex items-center gap-2">
-          <Filter className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-medium">Filters:</span>
-        </div>
+      <div className="flex flex-wrap gap-3 items-center justify-between">
+        <div className="flex flex-wrap gap-3 items-center">
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Filters:</span>
+          </div>
 
         <Select value={selectedSource} onValueChange={onSourceChange}>
           <SelectTrigger className="w-40">
@@ -121,6 +129,22 @@ export const SearchAndFilters = ({
             Clear Filters
           </Button>
         )}
+        </div>
+        
+        {/* Article count display */}
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <span className="font-medium">
+            {totalCount} article{totalCount !== 1 ? 's' : ''}
+          </span>
+          <span>•</span>
+          <span className="text-green-600 dark:text-green-400">
+            {readCount} read
+          </span>
+          <span>•</span>
+          <span className="text-blue-600 dark:text-blue-400">
+            {unreadCount} unread
+          </span>
+        </div>
       </div>
 
       {hasActiveFilters && (

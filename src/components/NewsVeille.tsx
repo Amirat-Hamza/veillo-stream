@@ -181,6 +181,7 @@ export const NewsVeille = () => {
                 }}
                 sources={availableSources}
                 categories={categories}
+                filteredArticles={filteredArticles}
               />
 
               {loading && articles.length === 0 ? (
