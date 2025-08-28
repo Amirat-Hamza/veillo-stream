@@ -201,7 +201,7 @@ export const useNewsData = () => {
         : NEWS_SOURCES;
       const enabledSources = configuredSources.filter(source => source.enabled !== false);
       
-      const timeRangeHours = settings.timeRange || 48; // Default to 48 hours
+      const timeRangeHours = typeof settings.timeRange === 'number' ? settings.timeRange : 48; // Default to 48 hours, allow 0 = All
       const timeThreshold = new Date(now.getTime() - timeRangeHours * 60 * 60 * 1000);
       
       console.log(`Fetching from ${enabledSources.length} enabled sources`);

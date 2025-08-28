@@ -24,6 +24,10 @@ export const NewsVeille = () => {
       s.timeRange = 48;
       localStorage.setItem('newsVeilleSettings', JSON.stringify(s));
     }
+    // Sync local state with saved settings (so the Select shows the actual value)
+    if (typeof s.timeRange === 'number') {
+      setTimeRange(s.timeRange);
+    }
   }, []);
   
   const { articles, loading, lastUpdate, markAsRead, refreshNews, getReadingStats } = useNewsData();
