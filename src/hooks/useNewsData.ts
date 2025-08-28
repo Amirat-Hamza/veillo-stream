@@ -21,7 +21,7 @@ const CORS_PROXIES = [
 
 // Add reasonable timeouts and pagination caps to avoid long hangs
 const REQUEST_TIMEOUT_MS = 10000; // 10s per attempt
-const MAX_PAGES_PER_SOURCE = 3; // limit pagination to avoid long waits
+const MAX_PAGES_PER_SOURCE = Infinity; // unlimited pagination; will stop when no new items are found
 
 const fetchWithTimeout = async (
   input: RequestInfo | URL,
@@ -46,11 +46,7 @@ export const useNewsData = () => {
   const parseRSSFeed = async (source: NewsSource): Promise<NewsArticle[]> => {
     console.log(`Attempting to fetch ${source.name} from ${source.url}`);
     
-    const host = (() => { try { return new URL(source.url).hostname; } catch { return ''; } })();
-    const wpBlockedHosts = new Set(['www.echoroukonline.com','echoroukonline.com','www.ennaharonline.com','ennaharonline.com']);
-    const proxies = wpBlockedHosts.has(host)
-      ? ['https://api.rss2json.com/v1/api.json?rss_url=','https://api.allorigins.win/raw?url=','https://api.allorigins.win/get?url=','https://api.codetabs.com/v1/proxy?quest=']
-      : CORS_PROXIES;
+    const proxies = CORS_PROXIES;
     
     for (let i = 0; i < proxies.length; i++) {
       const proxy = proxies[i];
@@ -177,7 +173,7 @@ export const useNewsData = () => {
         });
       } catch (error) {
         console.error(`Proxy ${i + 1} failed for ${source.name}:`, error);
-        if (i === CORS_PROXIES.length - 1) {
+        if (i === proxies.length - 1) {
           throw error;
         }
         continue;
