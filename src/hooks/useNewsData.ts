@@ -10,19 +10,14 @@ const NEWS_SOURCES: NewsSource[] = [
 
 // Multiple CORS proxy services as fallbacks (prioritize raw XML to avoid item limits)
 const CORS_PROXIES = [
-  // Jina AI text proxy (very reliable, raw content)
-  'https://r.jina.ai/',
-  // AllOrigins raw passthrough (raw XML)
-  'https://api.allorigins.win/raw?url=',
-  // AllOrigins JSON wrapper (we handle .contents)
-  'https://api.allorigins.win/get?url=',
-  // Codetabs public CORS proxy
+  // Prefer raw XML proxies that don’t cap items
   'https://api.codetabs.com/v1/proxy?quest=',
-  // Other generic proxies
+  'https://api.allorigins.win/raw?url=',
+  'https://api.allorigins.win/get?url=',
   'https://thingproxy.freeboard.io/fetch/',
   'https://cors.lol/',
   'https://cors-anywhere.herokuapp.com/',
-  // JSON RSS transformation (fallback: may limit items)
+  // As a last resort only (may cap items)
   'https://api.rss2json.com/v1/api.json?rss_url=',
 ];
 
@@ -213,20 +208,9 @@ export const useNewsData = () => {
           try {
             const sourceArticles = await parseRSSFeed(source);
             console.log(`Got ${sourceArticles.length} total articles from ${source.name}`);
-            const recentArticles = sourceArticles.filter(article => {
-              if (timeRangeHours === 0) {
-                // 0 hours means "All time" (no time filtering)
-                return !!article.link;
-              }
-              const articleDate = new Date(article.pubDate);
-              const isRecent = articleDate >= timeThreshold && article.link;
-              if (!isRecent) {
-                console.log(`Filtering out old/invalid article: ${article.title} (${articleDate.toISOString()})`);
-              }
-              return isRecent;
-            });
-            console.log(`Filtered to ${recentArticles.length} recent articles from ${source.name}`);
-            return recentArticles;
+            // Do not time-filter here. Return all articles with a valid link.
+            return sourceArticles.filter(article => !!article.link);
+
           } catch (error) {
             console.error(`Failed to fetch from ${source.name}:`, error);
             return [] as NewsArticle[];
@@ -260,9 +244,7 @@ export const useNewsData = () => {
           const newArticles = articlesWithReadStatus.filter(a => !existingLinks.has(a.link));
           
           const mergedArticles = [...newArticles, ...prevArticles];
-          const filteredArticles = (timeRangeHours === 0)
-            ? mergedArticles
-            : mergedArticles.filter(a => new Date(a.pubDate) >= timeThreshold);
+          const filteredArticles = mergedArticles;
           
           console.log(`Added ${newArticles.length} new articles, total: ${filteredArticles.length}`);
           return filteredArticles.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
