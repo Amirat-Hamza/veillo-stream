@@ -33,13 +33,14 @@ export const SearchAndFilters = ({
   sources,
   categories,
 }: SearchAndFiltersProps) => {
-  const hasActiveFilters = selectedSource !== 'all' || selectedCategory !== 'all' || showUnreadOnly;
+  const hasActiveFilters = selectedSource !== 'all' || selectedCategory !== 'all' || showUnreadOnly || timeRange > 0;
 
   const clearFilters = () => {
     onSourceChange('all');
     onCategoryChange('all');
     onUnreadOnlyChange(false);
     onSearchChange('');
+    onTimeRangeChange(0); // Reset to All time
   };
 
   return (
@@ -144,6 +145,15 @@ export const SearchAndFilters = ({
               <X 
                 className="h-3 w-3 cursor-pointer" 
                 onClick={() => onUnreadOnlyChange(false)}
+              />
+            </Badge>
+          )}
+          {timeRange > 0 && (
+            <Badge variant="secondary" className="gap-1">
+              Time: {timeRange}h
+              <X
+                className="h-3 w-3 cursor-pointer"
+                onClick={() => onTimeRangeChange(0)}
               />
             </Badge>
           )}
