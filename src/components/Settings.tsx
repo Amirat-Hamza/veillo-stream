@@ -8,8 +8,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Trash2, GripVertical, Download, Upload, Save, RotateCcw, ExternalLink } from 'lucide-react';
+import { Plus, Trash2, GripVertical, Download, Upload, Save, RotateCcw, ExternalLink, Edit2 } from 'lucide-react';
 import { NewsSource } from '@/types/news';
+import { useApiModels } from '@/hooks/useApiModels';
+
+interface ApiKeyConfig {
+  id: string;
+  provider: string;
+  apiKey: string;
+  selectedModel: string;
+  name: string;
+  isActive: boolean;
+}
 
 interface SettingsData {
   rssSources: NewsSource[];
@@ -17,14 +27,8 @@ interface SettingsData {
   soundNotifications: boolean;
   dndStart: string;
   dndEnd: string;
-  selectedAiProvider: string;
-  selectedModel: string;
-  availableModels: string[];
-  openaiApiKey: string;
-  geminiApiKey: string;
-  deepseekApiKey: string;
-  claudeApiKey: string;
-  huggingfaceApiKey: string;
+  apiKeyConfigs: ApiKeyConfig[];
+  activeApiKeyId: string;
   encryptionEnabled: boolean;
   encryptionPassphrase: string;
   language: string;
@@ -44,14 +48,8 @@ const defaultSettings: SettingsData = {
   soundNotifications: true,
   dndStart: '22:00',
   dndEnd: '08:00',
-  selectedAiProvider: 'openai',
-  selectedModel: '',
-  availableModels: [],
-  openaiApiKey: '',
-  geminiApiKey: '',
-  deepseekApiKey: '',
-  claudeApiKey: '',
-  huggingfaceApiKey: '',
+  apiKeyConfigs: [],
+  activeApiKeyId: '',
   encryptionEnabled: false,
   encryptionPassphrase: '',
   language: 'en',
@@ -64,6 +62,13 @@ export const Settings = () => {
   const [newSource, setNewSource] = useState({ name: '', url: '', category: 'General' });
   const [showApiKeys, setShowApiKeys] = useState(false);
   const [modelLoading, setModelLoading] = useState(false);
+  const [editingApiKey, setEditingApiKey] = useState<string | null>(null);
+  const [newApiKey, setNewApiKey] = useState({
+    provider: 'openai',
+    apiKey: '',
+    name: '',
+    selectedModel: ''
+  });
   const { toast } = useToast();
 
   useEffect(() => {
@@ -296,13 +301,11 @@ const resetSettings = () => {
   };
 
   // Function to detect available models based on API key
-  const detectModels = async (provider: string, apiKey: string) => {
+  const detectModels = async (provider: string, apiKey: string): Promise<string[]> => {
     if (!apiKey.trim()) {
-      setSettings(prev => ({ ...prev, availableModels: [], selectedModel: '' }));
-      return;
+      return [];
     }
 
-    setModelLoading(true);
     try {
       let models: string[] = [];
       
@@ -323,7 +326,6 @@ const resetSettings = () => {
                 .map((model: any) => model.id)
                 .sort();
             } else {
-              // Fallback to common OpenAI models if API call fails
               models = ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'];
             }
           } catch {
@@ -332,17 +334,14 @@ const resetSettings = () => {
           break;
 
         case 'gemini':
-          // Google Gemini models (predefined as they don't have a public models endpoint)
           models = ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-pro', 'gemini-pro-vision'];
           break;
 
         case 'deepseek':
-          // DeepSeek models
           models = ['deepseek-chat', 'deepseek-coder', 'deepseek-v2-chat'];
           break;
 
         case 'claude':
-          // Anthropic Claude models
           models = [
             'claude-3-5-sonnet-20241022', 
             'claude-3-opus-20240229', 
@@ -352,7 +351,6 @@ const resetSettings = () => {
           break;
 
         case 'huggingface':
-          // Popular HuggingFace models for text generation
           models = [
             'meta-llama/Meta-Llama-3.1-8B-Instruct',
             'microsoft/DialoGPT-medium',
@@ -363,44 +361,158 @@ const resetSettings = () => {
           break;
       }
 
-      setSettings(prev => ({
-        ...prev,
-        availableModels: models,
-        selectedModel: models.length > 0 ? models[0] : ''
-      }));
-
-      if (models.length > 0) {
-        toast({
-          title: "Models Detected",
-          description: `Found ${models.length} available models for ${provider}`,
-        });
-      }
+      return models;
     } catch (error) {
       console.error('Error detecting models:', error);
-      toast({
-        title: "Model Detection Failed",
-        description: "Using default models for this provider",
-        variant: "destructive"
-      });
-    } finally {
-      setModelLoading(false);
+      return [];
     }
   };
 
-  // Handle API key changes
-  const handleApiKeyChange = (provider: string, value: string) => {
-    const keyMap: Record<string, keyof SettingsData> = {
-      openai: 'openaiApiKey',
-      gemini: 'geminiApiKey',
-      deepseek: 'deepseekApiKey',
-      claude: 'claudeApiKey',
-      huggingface: 'huggingfaceApiKey'
+  const addApiKey = async () => {
+    if (!newApiKey.apiKey.trim() || !newApiKey.name.trim()) {
+      toast({
+        title: "Invalid Input",
+        description: "Please provide both API key and name.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setModelLoading(true);
+    const models = await detectModels(newApiKey.provider, newApiKey.apiKey);
+    
+    const apiKeyConfig: ApiKeyConfig = {
+      id: Date.now().toString(),
+      provider: newApiKey.provider,
+      apiKey: newApiKey.apiKey,
+      selectedModel: models.length > 0 ? models[0] : '',
+      name: newApiKey.name,
+      isActive: settings.apiKeyConfigs.length === 0
     };
-    
-    setSettings(prev => ({ ...prev, [keyMap[provider]]: value }));
-    
-    // Detect models after a short delay to avoid too many API calls
-    setTimeout(() => detectModels(provider, value), 500);
+
+    setSettings(prev => ({
+      ...prev,
+      apiKeyConfigs: [...prev.apiKeyConfigs, apiKeyConfig],
+      activeApiKeyId: prev.apiKeyConfigs.length === 0 ? apiKeyConfig.id : prev.activeApiKeyId
+    }));
+
+    setNewApiKey({ provider: 'openai', apiKey: '', name: '', selectedModel: '' });
+    setModelLoading(false);
+
+    toast({
+      title: "API Key Added",
+      description: `${newApiKey.name} has been added successfully.`,
+    });
+  };
+
+  const deleteApiKey = (id: string) => {
+    const config = settings.apiKeyConfigs.find(c => c.id === id);
+    setSettings(prev => {
+      const newConfigs = prev.apiKeyConfigs.filter(c => c.id !== id);
+      return {
+        ...prev,
+        apiKeyConfigs: newConfigs,
+        activeApiKeyId: prev.activeApiKeyId === id ? (newConfigs[0]?.id || '') : prev.activeApiKeyId
+      };
+    });
+
+    toast({
+      title: "API Key Deleted",
+      description: `${config?.name} has been deleted.`,
+    });
+  };
+
+  const setActiveApiKey = (id: string) => {
+    setSettings(prev => ({
+      ...prev,
+      activeApiKeyId: id
+    }));
+
+    const config = settings.apiKeyConfigs.find(c => c.id === id);
+    toast({
+      title: "Active API Key Changed",
+      description: `Now using ${config?.name}`,
+    });
+  };
+
+  const updateApiKeyModel = (id: string, model: string) => {
+    setSettings(prev => ({
+      ...prev,
+      apiKeyConfigs: prev.apiKeyConfigs.map(config =>
+        config.id === id ? { ...config, selectedModel: model } : config
+      )
+    }));
+  };
+
+  const getProviderInfo = (provider: string) => {
+    const providerInfo = {
+      openai: {
+        name: 'OpenAI',
+        url: 'https://platform.openai.com/api-keys',
+        description: 'GPT models with excellent reasoning capabilities'
+      },
+      gemini: {
+        name: 'Google Gemini',
+        url: 'https://aistudio.google.com/app/apikey',
+        description: 'Google\'s advanced AI with multimodal capabilities'
+      },
+      deepseek: {
+        name: 'DeepSeek',
+        url: 'https://platform.deepseek.com/api_keys',
+        description: 'Powerful coding and reasoning models at low cost'
+      },
+      claude: {
+        name: 'Anthropic Claude',
+        url: 'https://console.anthropic.com/settings/keys',
+        description: 'Advanced reasoning with strong safety features'
+      },
+      huggingface: {
+        name: 'Hugging Face',
+        url: 'https://huggingface.co/settings/tokens',
+        description: 'Open-source models and transformers'
+      }
+    };
+    return providerInfo[provider as keyof typeof providerInfo];
+  };
+
+  // Model Selector Component
+  const ModelSelector = ({ config, onModelChange }: { config: ApiKeyConfig, onModelChange: (model: string) => void }) => {
+    const { models, loading } = useApiModels(config.provider, config.apiKey);
+
+    if (loading) {
+      return (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          Detecting models...
+        </div>
+      );
+    }
+
+    if (models.length === 0) {
+      return (
+        <div className="text-sm text-muted-foreground">
+          No models detected
+        </div>
+      );
+    }
+
+    return (
+      <Select
+        value={config.selectedModel}
+        onValueChange={onModelChange}
+      >
+        <SelectTrigger className="w-40">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {models.map(model => (
+            <SelectItem key={model} value={model}>
+              {model}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    );
   };
 
   return (
@@ -629,241 +741,167 @@ const resetSettings = () => {
         </CardContent>
       </Card>
 
-      {/* AI Provider Selection & API Keys */}
+      {/* AI Provider Management */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
-            🤖 AI Features
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowApiKeys(!showApiKeys)}
-            >
-              {showApiKeys ? 'Hide' : 'Show'} API Keys
-            </Button>
+            🤖 AI API Keys Management
+            <Badge variant="secondary">{settings.apiKeyConfigs.length} keys</Badge>
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>AI Provider</Label>
-              <Select
-                value={settings.selectedAiProvider}
-                onValueChange={(value) => setSettings(prev => ({ ...prev, selectedAiProvider: value }))}
-              >
-                <SelectTrigger className="bg-background border border-border">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-background border border-border z-50">
-                  <SelectItem value="openai">
-                    <div className="flex items-center justify-between w-full">
-                      <span>🧠 OpenAI (ChatGPT)</span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="gemini">
-                    <div className="flex items-center justify-between w-full">
-                      <span>🔮 Google Gemini</span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="deepseek">
-                    <div className="flex items-center justify-between w-full">
-                      <span>🚀 DeepSeek</span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="claude">
-                    <div className="flex items-center justify-between w-full">
-                      <span>🎭 Anthropic Claude</span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="huggingface">
-                    <div className="flex items-center justify-between w-full">
-                      <span>🤗 Hugging Face</span>
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+        <CardContent className="space-y-6">
+          {/* Add New API Key */}
+          <div className="p-4 border rounded-lg bg-muted/50 space-y-4">
+            <h3 className="font-medium">Add New API Key</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Provider</Label>
+                <Select
+                  value={newApiKey.provider}
+                  onValueChange={(value) => setNewApiKey(prev => ({ ...prev, provider: value }))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="openai">🧠 OpenAI</SelectItem>
+                    <SelectItem value="gemini">🔮 Google Gemini</SelectItem>
+                    <SelectItem value="deepseek">🚀 DeepSeek</SelectItem>
+                    <SelectItem value="claude">🎭 Anthropic Claude</SelectItem>
+                    <SelectItem value="huggingface">🤗 Hugging Face</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Name</Label>
+                <Input
+                  placeholder="My OpenAI Key"
+                  value={newApiKey.name}
+                  onChange={(e) => setNewApiKey(prev => ({ ...prev, name: e.target.value }))}
+                />
+              </div>
             </div>
-
-            {/* Dynamic Get API Keys Button */}
-            <div className="flex justify-center">
+            <div className="space-y-2">
+              <Label>API Key</Label>
+              <Input
+                type="password"
+                placeholder="sk-..."
+                value={newApiKey.apiKey}
+                onChange={(e) => setNewApiKey(prev => ({ ...prev, apiKey: e.target.value }))}
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={addApiKey} disabled={modelLoading}>
+                {modelLoading ? (
+                  <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin mr-2" />
+                ) : (
+                  <Plus className="w-4 h-4 mr-2" />
+                )}
+                Add API Key
+              </Button>
               <Button
                 variant="outline"
                 onClick={() => {
-                  const urls: Record<string, string> = {
-                    openai: 'https://platform.openai.com/api-keys',
-                    gemini: 'https://aistudio.google.com/app/apikey',
-                    deepseek: 'https://platform.deepseek.com/api_keys',
-                    claude: 'https://console.anthropic.com/settings/keys',
-                    huggingface: 'https://huggingface.co/settings/tokens'
-                  };
-                  window.open(urls[settings.selectedAiProvider], '_blank');
+                  const info = getProviderInfo(newApiKey.provider);
+                  if (info) window.open(info.url, '_blank');
                 }}
-                className="w-auto"
               >
                 <ExternalLink className="w-4 h-4 mr-2" />
-                Get {settings.selectedAiProvider === 'openai' ? 'OpenAI' : 
-                     settings.selectedAiProvider === 'gemini' ? 'Google Gemini' :
-                     settings.selectedAiProvider === 'deepseek' ? 'DeepSeek' :
-                     settings.selectedAiProvider === 'claude' ? 'Anthropic Claude' :
-                     'Hugging Face'} API Key
+                Get API Key
               </Button>
             </div>
-
-            {/* Provider Info Cards */}
-            {settings.selectedAiProvider === 'openai' && (
-              <div className="p-3 bg-muted/50 rounded-lg border">
-                <h4 className="font-medium mb-2">🧠 OpenAI (ChatGPT)</h4>
-                <p className="text-sm text-muted-foreground mb-2">
-                  Models: GPT-4, GPT-3.5 Turbo<br/>
-                  Pricing: Pay-per-use (requires billing setup)
-                </p>
-              </div>
-            )}
-
-            {settings.selectedAiProvider === 'gemini' && (
-              <div className="p-3 bg-muted/50 rounded-lg border">
-                <h4 className="font-medium mb-2">🔮 Google Gemini</h4>
-                <p className="text-sm text-muted-foreground mb-2">
-                  Models: Gemini Pro, Gemini Flash<br/>
-                  Pricing: Has free tier, then pay-per-use
-                </p>
-              </div>
-            )}
-
-            {settings.selectedAiProvider === 'deepseek' && (
-              <div className="p-3 bg-muted/50 rounded-lg border">
-                <h4 className="font-medium mb-2">🚀 DeepSeek</h4>
-                <p className="text-sm text-muted-foreground mb-2">
-                  Models: DeepSeek-V2, DeepSeek-Coder<br/>
-                  Pricing: Very affordable, competitive rates
-                </p>
-              </div>
-            )}
-
-            {settings.selectedAiProvider === 'claude' && (
-              <div className="p-3 bg-muted/50 rounded-lg border">
-                <h4 className="font-medium mb-2">🎭 Anthropic Claude</h4>
-                <p className="text-sm text-muted-foreground mb-2">
-                  Models: Claude 3.5 Sonnet, Claude 3 Opus<br/>
-                  Pricing: Pay-per-use
-                </p>
-              </div>
-            )}
-
-            {settings.selectedAiProvider === 'huggingface' && (
-              <div className="p-3 bg-muted/50 rounded-lg border">
-                <h4 className="font-medium mb-2">🤗 Hugging Face</h4>
-                <p className="text-sm text-muted-foreground mb-2">
-                  Models: Open source models, Llama, Mistral<br/>
-                  Pricing: Many free models available
-                </p>
-              </div>
-            )}
-
-            {showApiKeys && (
-              <div className="space-y-4 pt-4 border-t">
-                {/* OpenAI API Key */}
-                {settings.selectedAiProvider === 'openai' && (
-                  <div className="space-y-2">
-                    <Label>OpenAI API Key</Label>
-                    <Input
-                      type="password"
-                      placeholder="sk-..."
-                      value={settings.openaiApiKey}
-                      onChange={(e) => handleApiKeyChange('openai', e.target.value)}
-                    />
-                    <p className="text-xs text-muted-foreground">Used for ChatGPT and GPT-4 models</p>
-                  </div>
-                )}
-
-                {/* Gemini API Key */}
-                {settings.selectedAiProvider === 'gemini' && (
-                  <div className="space-y-2">
-                    <Label>Google Gemini API Key</Label>
-                    <Input
-                      type="password"
-                      placeholder="AIza..."
-                      value={settings.geminiApiKey}
-                      onChange={(e) => handleApiKeyChange('gemini', e.target.value)}
-                    />
-                    <p className="text-xs text-muted-foreground">Used for Gemini Pro and Flash models</p>
-                  </div>
-                )}
-
-                {/* DeepSeek API Key */}
-                {settings.selectedAiProvider === 'deepseek' && (
-                  <div className="space-y-2">
-                    <Label>DeepSeek API Key</Label>
-                    <Input
-                      type="password"
-                      placeholder="sk-..."
-                      value={settings.deepseekApiKey}
-                      onChange={(e) => handleApiKeyChange('deepseek', e.target.value)}
-                    />
-                    <p className="text-xs text-muted-foreground">Used for DeepSeek-V2 and Coder models</p>
-                  </div>
-                )}
-
-                {/* Claude API Key */}
-                {settings.selectedAiProvider === 'claude' && (
-                  <div className="space-y-2">
-                    <Label>Anthropic Claude API Key</Label>
-                    <Input
-                      type="password"
-                      placeholder="sk-ant-..."
-                      value={settings.claudeApiKey}
-                      onChange={(e) => handleApiKeyChange('claude', e.target.value)}
-                    />
-                    <p className="text-xs text-muted-foreground">Used for Claude 3.5 Sonnet and Opus models</p>
-                  </div>
-                )}
-
-                {/* HuggingFace API Key */}
-                {settings.selectedAiProvider === 'huggingface' && (
-                  <div className="space-y-2">
-                    <Label>HuggingFace API Key</Label>
-                    <Input
-                      type="password"
-                      placeholder="hf_..."
-                      value={settings.huggingfaceApiKey}
-                      onChange={(e) => handleApiKeyChange('huggingface', e.target.value)}
-                    />
-                    <p className="text-xs text-muted-foreground">Used for open source AI models</p>
-                  </div>
-                )}
-
-                {/* Model Selection - appears when models are detected */}
-                {settings.availableModels.length > 0 && (
-                  <div className="space-y-2 pt-4 border-t">
-                    <Label className="flex items-center gap-2">
-                      Available Models
-                      {modelLoading && (
-                        <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                      )}
-                    </Label>
-                    <Select
-                      value={settings.selectedModel}
-                      onValueChange={(value) => setSettings(prev => ({ ...prev, selectedModel: value }))}
-                    >
-                      <SelectTrigger className="bg-background border border-border">
-                        <SelectValue placeholder="Select a model..." />
-                      </SelectTrigger>
-                      <SelectContent className="bg-background border border-border z-50">
-                        {settings.availableModels.map((model) => (
-                          <SelectItem key={model} value={model}>
-                            {model}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">
-                      {settings.availableModels.length} model{settings.availableModels.length !== 1 ? 's' : ''} detected for your API key
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
+            {/* Provider Info */}
+            {(() => {
+              const info = getProviderInfo(newApiKey.provider);
+              return info ? (
+                <div className="p-3 bg-background/50 rounded border">
+                  <h4 className="font-medium mb-1">{info.name}</h4>
+                  <p className="text-sm text-muted-foreground">{info.description}</p>
+                </div>
+              ) : null;
+            })()}
           </div>
+
+          {/* API Keys List */}
+          {settings.apiKeyConfigs.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="font-medium">Your API Keys</h3>
+              {settings.apiKeyConfigs.map((config) => (
+                <div
+                  key={config.id}
+                  className={`p-4 border rounded-lg transition-colors ${
+                    config.id === settings.activeApiKeyId ? 'border-primary bg-primary/5' : 'bg-card'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">{config.name}</span>
+                        <Badge variant="secondary">
+                          {getProviderInfo(config.provider)?.name || config.provider}
+                        </Badge>
+                        {config.id === settings.activeApiKeyId && (
+                          <Badge variant="default">Active</Badge>
+                        )}
+                      </div>
+                    </div>
+                     <div className="flex items-center gap-2">
+                      <ModelSelector 
+                        config={config}
+                        onModelChange={(model) => updateApiKeyModel(config.id, model)}
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setActiveApiKey(config.id)}
+                        disabled={config.id === settings.activeApiKeyId}
+                      >
+                        Use This
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => deleteApiKey(config.id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="mt-2 text-sm text-muted-foreground">
+                    <p>Model: {config.selectedModel || 'Auto-detecting...'}</p>
+                    <p>API Key: •••••••••{config.apiKey.slice(-8)}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Active Key Selection */}
+          {settings.apiKeyConfigs.length > 0 && (
+            <div className="p-4 border rounded-lg bg-muted/20">
+              <h3 className="font-medium mb-3">Select Active API Key for Platform</h3>
+              <Select
+                value={settings.activeApiKeyId}
+                onValueChange={setActiveApiKey}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select an API key to use..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {settings.apiKeyConfigs.map((config) => (
+                    <SelectItem key={config.id} value={config.id}>
+                      <div className="flex items-center gap-2">
+                        <span>{config.name}</span>
+                        <Badge variant="outline" className="text-xs">
+                          {getProviderInfo(config.provider)?.name}
+                        </Badge>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </CardContent>
       </Card>
 
