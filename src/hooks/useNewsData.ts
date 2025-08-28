@@ -12,11 +12,11 @@ const NEWS_SOURCES: NewsSource[] = [
 
 // Multiple CORS proxy services as fallbacks (prioritize raw XML to avoid item caps)
 const CORS_PROXIES = [
+  'https://api.codetabs.com/v1/proxy?quest=',
   'https://r.jina.ai/',
   'https://api.allorigins.win/raw?url=',
   'https://api.allorigins.win/get?url=',
   'https://cors.isomorphic-git.org/',
-  'https://api.codetabs.com/v1/proxy?quest=',
   'https://api.rss2json.com/v1/api.json?rss_url=',
 ];
 
@@ -246,21 +246,34 @@ export const useNewsData = () => {
         // 2) Paginate ONLY for known WordPress domains using /feed/?paged=N or /page/N/?feed=rss2
         try {
           const u = new URL(source.url);
-          const wpDomains = new Set(['www.echoroukonline.com','www.ennaharonline.com']);
+          const wpDomains = new Set(['www.echoroukonline.com','www.ennaharonline.com','www.aljazeera.com']);
           if (wpDomains.has(u.hostname)) {
             const origin = u.origin;
-            const feedBase = `${origin}/feed/`;
+            const isFeedPath = /\/feed\/?($|\?)/.test(u.pathname);
+
+            const buildPagedCandidates = (p: number) => {
+              const candidates: string[] = [];
+              if (isFeedPath) {
+                candidates.push(`${origin}/feed/?paged=${p}`);
+                candidates.push(`${origin}/page/${p}/?feed=rss2`);
+              } else {
+                const sep = source.url.includes('?') ? '&' : '?';
+                candidates.push(`${source.url}${sep}paged=${p}`);
+                candidates.push(`${origin}/page/${p}/?feed=rss2`);
+                candidates.push(`${origin}/feed/?paged=${p}`);
+              }
+              return candidates;
+            };
+
             let page = initial.length > 0 ? 2 : 1; // if initial failed, start at page 1
             while (page <= MAX_PAGES_PER_SOURCE) { // paginate until empty/new items stop
-              const pagedUrl = `${feedBase}?paged=${page}`;
-              console.log(`Fetching ${source.name} page ${page}: ${pagedUrl}`);
-              let pageArticles = await parseRSSFeed({ ...source, url: pagedUrl });
+              let pageArticles: NewsArticle[] = [];
+              const candidates = buildPagedCandidates(page);
 
-              // Fallback pattern for some WP setups
-              if (pageArticles.length === 0) {
-                const altUrl = `${origin}/page/${page}/?feed=rss2`;
-                console.log(`Fallback fetch ${source.name} page ${page}: ${altUrl}`);
-                pageArticles = await parseRSSFeed({ ...source, url: altUrl });
+              for (const url of candidates) {
+                console.log(`Fetching ${source.name} page ${page}: ${url}`);
+                pageArticles = await parseRSSFeed({ ...source, url });
+                if (pageArticles.length > 0) break;
               }
 
               if (pageArticles.length === 0) {
