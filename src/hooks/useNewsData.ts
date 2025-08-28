@@ -48,7 +48,12 @@ export const useNewsData = () => {
   const parseRSSFeed = async (source: NewsSource): Promise<NewsArticle[]> => {
     console.log(`Attempting to fetch ${source.name} from ${source.url}`);
     
-    const proxies = CORS_PROXIES;
+    const u = new URL(source.url);
+    const host = u.hostname.replace(/^www\./, '');
+    const isCFWordPress = ['echoroukonline.com', 'ennaharonline.com'].includes(host);
+    const proxies = isCFWordPress
+      ? ['https://api.rss2json.com/v1/api.json?rss_url=', ...CORS_PROXIES.filter(p => !p.includes('rss2json.com'))]
+      : CORS_PROXIES;
     
     for (let i = 0; i < proxies.length; i++) {
       const proxy = proxies[i];
@@ -225,38 +230,39 @@ export const useNewsData = () => {
 
       for (const source of enabledSources) {
         console.log(`→ Source: ${source.name}`);
+        // 1) Fetch the main feed first (do not abort pagination if this fails)
+        let initial: NewsArticle[] = [];
         try {
-          // 1) Fetch the main feed first
-          const initial = await parseRSSFeed(source);
+          initial = await parseRSSFeed(source);
           console.log(`${source.name}: initial batch size ${initial.length}`);
-          appendArticles(initial); // keep duplicates
+        } catch (e) {
+          console.warn(`${source.name}: initial fetch failed`, e);
+        }
+        appendArticles(initial); // keep duplicates
 
-          // 2) Paginate ONLY for known WordPress domains using /feed/?paged=N
-          try {
-            const u = new URL(source.url);
-            const wpDomains = new Set(['www.echoroukonline.com','www.ennaharonline.com']);
-            if (wpDomains.has(u.hostname)) {
-              const origin = u.origin;
-              const feedBase = `${origin}/feed/`;
-              let page = 2; // page 1 already fetched via initial
-              while (page <= MAX_PAGES_PER_SOURCE) { // paginate until empty
-                const pagedUrl = `${feedBase}?paged=${page}`;
-                console.log(`Fetching ${source.name} page ${page}: ${pagedUrl}`);
-                const pageArticles = await parseRSSFeed({ ...source, url: pagedUrl });
-                if (pageArticles.length === 0) {
-                  console.log(`${source.name}: reached end at page ${page}`);
-                  break;
-                }
-                appendArticles(pageArticles); // keep duplicates
-                page++;
-                await new Promise(r => setTimeout(r, 200)); // gentle rate limit
+        // 2) Paginate ONLY for known WordPress domains using /feed/?paged=N (attempt even if initial failed)
+        try {
+          const u = new URL(source.url);
+          const wpDomains = new Set(['www.echoroukonline.com','www.ennaharonline.com']);
+          if (wpDomains.has(u.hostname)) {
+            const origin = u.origin;
+            const feedBase = `${origin}/feed/`;
+            let page = 2; // page 1 already tried above
+            while (page <= MAX_PAGES_PER_SOURCE) { // paginate until empty
+              const pagedUrl = `${feedBase}?paged=${page}`;
+              console.log(`Fetching ${source.name} page ${page}: ${pagedUrl}`);
+              const pageArticles = await parseRSSFeed({ ...source, url: pagedUrl });
+              if (pageArticles.length === 0) {
+                console.log(`${source.name}: reached end at page ${page}`);
+                break;
               }
+              appendArticles(pageArticles); // keep duplicates
+              page++;
+              await new Promise(r => setTimeout(r, 200)); // gentle rate limit
             }
-          } catch (err) {
-            console.warn(`${source.name}: pagination check failed`, err);
           }
-        } catch (error) {
-          console.error(`Failed to fetch from ${source.name}:`, error);
+        } catch (err) {
+          console.warn(`${source.name}: pagination failed`, err);
         }
       }
 
