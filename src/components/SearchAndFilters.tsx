@@ -93,12 +93,13 @@ export const SearchAndFilters = ({
           </SelectContent>
         </Select>
 
-        <Select value={timeRange.toString()} onValueChange={(value) => onTimeRangeChange(parseInt(value))}>
+        <Select value={timeRange.toString()} onValueChange={(value) => onTimeRangeChange(parseFloat(value))}>
           <SelectTrigger className="w-28">
             <SelectValue placeholder="Time range" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="0">All</SelectItem>
+            <SelectItem value="0.5">30m</SelectItem>
             <SelectItem value="1">1h</SelectItem>
             <SelectItem value="2">2h</SelectItem>
             <SelectItem value="3">3h</SelectItem>
@@ -178,7 +179,7 @@ export const SearchAndFilters = ({
           )}
           {timeRange > 0 && (
             <Badge variant="secondary" className="gap-1">
-              Time: {timeRange}h
+              Time: {timeRange === 0.5 ? '30m' : `${timeRange}h`}
               <X
                 className="h-3 w-3 cursor-pointer"
                 onClick={() => onTimeRangeChange(0)}
