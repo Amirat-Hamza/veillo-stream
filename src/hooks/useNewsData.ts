@@ -178,65 +178,49 @@ export const useNewsData = () => {
   };
 
   const fetchAllNews = useCallback(async (isInitialLoad = true) => {
-    console.log('Starting to fetch all news...');
+    console.log('Starting to fetch ALL articles (including duplicates)...');
     setLoading(true);
     try {
       const allArticles: NewsArticle[] = [];
       
-      const now = new Date();
       const settings = JSON.parse(localStorage.getItem('newsVeilleSettings') || '{}');
       const configuredSources: NewsSource[] = (Array.isArray(settings.rssSources) && settings.rssSources.length > 0)
         ? settings.rssSources
         : NEWS_SOURCES;
       const enabledSources = configuredSources.filter(source => source.enabled !== false);
       
-      const timeRangeHours = typeof settings.timeRange === 'number' ? settings.timeRange : 48; // Default to 48 hours, allow 0 = All
-      const timeThreshold = new Date(now.getTime() - timeRangeHours * 60 * 60 * 1000);
-      
-      console.log(`Fetching from ${enabledSources.length} enabled sources`);
-      console.log(`Time threshold: ${timeThreshold.toISOString()} (last ${timeRangeHours}h)`);
+      console.log(`Fetching ALL articles from ${enabledSources.length} enabled sources (NO deduplication)`);
       
       const results = await Promise.allSettled(
         enabledSources.map(async (source) => {
-          console.log(`Fetching from ${source.name}...`);
+          console.log(`Fetching ALL articles from ${source.name}...`);
           try {
-            const seen = new Set<string>();
             const collected: NewsArticle[] = [];
 
-            // 1) Original feed URL
+            // 1) Original feed URL - get ALL articles
             const initial = await parseRSSFeed(source);
-            initial.forEach((a) => {
-              if (a.link && !seen.has(a.link)) {
-                seen.add(a.link);
-                collected.push(a);
-              }
-            });
-            console.log(`Got ${initial.length} items from original URL for ${source.name}`);
+            collected.push(...initial); // Keep ALL articles, including duplicates
+            console.log(`Got ${initial.length} articles from original URL for ${source.name}`);
 
-            // 2) WordPress-style /feed/ pagination (only for known WP domains)
+            // 2) WordPress-style /feed/ pagination - fetch ALL pages
             try {
               const u = new URL(source.url);
               const wpDomains = new Set(['www.echoroukonline.com','www.ennaharonline.com','www.mosaiquefm.net']);
               if (wpDomains.has(u.hostname)) {
                 const origin = u.origin;
                 const feedBase = `${origin}/feed/`;
-                let page = 1;
-                while (page <= MAX_PAGES_PER_SOURCE) {
-                  const pagedUrl = page === 1 ? feedBase : `${feedBase}?paged=${page}`;
+                let page = 2; // Start from page 2 since page 1 was already fetched
+                while (page <= 100) { // Reasonable limit to prevent infinite loops
+                  const pagedUrl = `${feedBase}?paged=${page}`;
                   const pageArticles = await parseRSSFeed({ ...source, url: pagedUrl });
-                  if (pageArticles.length === 0) break;
-                  const before = collected.length;
-                  pageArticles.forEach((a) => {
-                    if (a.link && !seen.has(a.link)) {
-                      seen.add(a.link);
-                      collected.push(a);
-                    }
-                  });
-                  const added = collected.length - before;
-                  console.log(`Page ${page} from ${feedBase} added ${added} new items for ${source.name}`);
-                  if (added === 0) break; // stop when no new items are discovered
+                  if (pageArticles.length === 0) {
+                    console.log(`✓ ${source.name}: Reached end at page ${page}`);
+                    break;
+                  }
+                  collected.push(...pageArticles); // Keep ALL articles, including duplicates
+                  console.log(`Page ${page} from ${feedBase} added ${pageArticles.length} articles for ${source.name} (total: ${collected.length})`);
                   page++;
-                  await new Promise((r) => setTimeout(r, 600));
+                  await new Promise((r) => setTimeout(r, 600)); // Rate limiting
                 }
               }
             } catch {}
@@ -244,26 +228,18 @@ export const useNewsData = () => {
             // 3) If URL hints at RSS path, also try ?paged=N on the original path
             if (source.url.includes('/rss')) {
               let page = 2; // start at 2, since original URL already fetched
-              while (page <= MAX_PAGES_PER_SOURCE) {
+              while (page <= 100) {
                 const pagedUrl = `${source.url}?paged=${page}`;
                 const pageArticles = await parseRSSFeed({ ...source, url: pagedUrl });
                 if (pageArticles.length === 0) break;
-                const before = collected.length;
-                pageArticles.forEach((a) => {
-                  if (a.link && !seen.has(a.link)) {
-                    seen.add(a.link);
-                    collected.push(a);
-                  }
-                });
-                const added = collected.length - before;
-                console.log(`RSS paged ${page} from ${source.url} added ${added} new items for ${source.name}`);
-                if (added === 0) break;
+                collected.push(...pageArticles); // Keep ALL articles, including duplicates
+                console.log(`RSS paged ${page} from ${source.url} added ${pageArticles.length} articles for ${source.name} (total: ${collected.length})`);
                 page++;
                 await new Promise((r) => setTimeout(r, 600));
               }
             }
 
-            console.log(`Collected ${collected.length} unique articles for ${source.name}`);
+            console.log(`✓ Collected ${collected.length} TOTAL articles (including duplicates) for ${source.name}`);
             return collected;
 
           } catch (error) {
@@ -275,12 +251,13 @@ export const useNewsData = () => {
 
       results.forEach((res) => {
         if (res.status === 'fulfilled') {
-          allArticles.push(...res.value);
+          allArticles.push(...res.value); // Keep ALL articles including duplicates
         }
       });
 
-      console.log(`Total recent articles fetched: ${allArticles.length}`);
+      console.log(`TOTAL articles fetched (including duplicates): ${allArticles.length}`);
 
+      // Sort by date but keep ALL articles including duplicates
       allArticles.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
       
       const readArticles = JSON.parse(localStorage.getItem('readArticles') || '[]');
@@ -289,21 +266,17 @@ export const useNewsData = () => {
         isRead: readArticles.includes(article.link),
       }));
 
-      console.log(`Setting ${articlesWithReadStatus.length} articles with read status`);
+      console.log(`Setting ${articlesWithReadStatus.length} articles with read status (including duplicates)`);
       
       if (isInitialLoad) {
         setArticles(articlesWithReadStatus);
       } else {
         setArticles(prevArticles => {
-          // Keep all previous articles, only add truly new ones
-          const existingLinks = new Set(prevArticles.map(a => a.link));
-          const newArticles = articlesWithReadStatus.filter(a => !existingLinks.has(a.link));
-          
-          // Don't lose existing articles - combine and sort
-          const combined = [...prevArticles, ...newArticles];
+          // Add ALL new articles without deduplication
+          const combined = [...prevArticles, ...articlesWithReadStatus];
           const sorted = combined.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
           
-          console.log(`Added ${newArticles.length} new articles, total: ${sorted.length}`);
+          console.log(`Added ${articlesWithReadStatus.length} articles, total archive: ${sorted.length} (including duplicates)`);
           return sorted;
         });
       }
