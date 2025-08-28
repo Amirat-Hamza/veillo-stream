@@ -12,10 +12,11 @@ const NEWS_SOURCES: NewsSource[] = [
 
 // Multiple CORS proxy services as fallbacks (prioritize raw XML to avoid item caps)
 const CORS_PROXIES = [
-  'https://api.rss2json.com/v1/api.json?rss_url=',
+  'https://api.codetabs.com/v1/proxy?quest=',
   'https://api.allorigins.win/raw?url=',
   'https://api.allorigins.win/get?url=',
-  'https://api.codetabs.com/v1/proxy?quest=',
+  'https://r.jina.ai',
+  'https://api.rss2json.com/v1/api.json?rss_url=',
 ];
 
 

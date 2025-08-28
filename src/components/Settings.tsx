@@ -29,6 +29,8 @@ const defaultSettings: SettingsData = {
   rssSources: [
     { name: 'BBC News', url: 'https://feeds.bbci.co.uk/news/rss.xml', category: 'International', enabled: true, interval: 15 },
     { name: 'Al Jazeera', url: 'https://www.aljazeera.com/xml/rss/all.xml', category: 'International', enabled: true, interval: 15 },
+    { name: 'Echorouk Online', url: 'https://www.echoroukonline.com/feed/', category: 'Algeria', enabled: true, interval: 30 },
+    { name: 'Ennahar Online', url: 'https://www.ennaharonline.com/feed/', category: 'Algeria', enabled: true, interval: 30 },
     { name: 'TAP', url: 'https://www.tap.info.tn/rss', category: 'Tunisia', enabled: true, interval: 30 },
     { name: 'Mosaique FM', url: 'https://www.mosaiquefm.net/rss', category: 'Tunisia', enabled: true, interval: 30 }
   ],
@@ -55,47 +57,67 @@ export const Settings = () => {
     loadSettings();
   }, []);
 
-  const loadSettings = () => {
-    try {
-      const stored = localStorage.getItem('newsVeilleSettings');
-      if (stored) {
-        const parsedSettings = JSON.parse(stored);
-        setSettings({ ...defaultSettings, ...parsedSettings });
-      }
-    } catch (error) {
-      console.error('Failed to load settings:', error);
-      toast({
-        title: "Settings Load Failed",
-        description: "Using default settings.",
-        variant: "destructive"
+const loadSettings = () => {
+  try {
+    const stored = localStorage.getItem('newsVeilleSettings');
+    if (stored) {
+      const parsedSettings = JSON.parse(stored);
+      const storedSources = Array.isArray(parsedSettings.rssSources) ? parsedSettings.rssSources : [];
+      const defaults = defaultSettings.rssSources;
+      const norm = (u: string) => (u || '').trim().replace(/\/+$/, '');
+      const byUrl = new Map<string, NewsSource>();
+      storedSources.forEach((src: NewsSource) => {
+        const key = norm(src.url);
+        byUrl.set(key, { ...src, enabled: src.enabled !== false });
       });
+      defaults.forEach((src) => {
+        const key = norm(src.url);
+        if (!byUrl.has(key)) byUrl.set(key, { ...src, enabled: true });
+      });
+      const merged = { ...defaultSettings, ...parsedSettings, rssSources: Array.from(byUrl.values()) };
+      setSettings(merged);
+    } else {
+      setSettings(defaultSettings);
     }
-  };
-
-  const saveSettings = () => {
-    try {
-      localStorage.setItem('newsVeilleSettings', JSON.stringify(settings));
-      toast({
-        title: "Settings Saved",
-        description: "Your settings have been saved successfully.",
-      });
-    } catch (error) {
-      console.error('Failed to save settings:', error);
-      toast({
-        title: "Save Failed",
-        description: "Failed to save settings.",
-        variant: "destructive"
-      });
-    }
-  };
-
-  const resetSettings = () => {
-    setSettings(defaultSettings);
+  } catch (error) {
+    console.error('Failed to load settings:', error);
     toast({
-      title: "Settings Reset",
-      description: "All settings have been reset to defaults.",
+      title: "Settings Load Failed",
+      description: "Using default settings.",
+      variant: "destructive"
     });
-  };
+  }
+};
+
+const saveSettings = () => {
+  try {
+    localStorage.setItem('newsVeilleSettings', JSON.stringify(settings));
+    window.dispatchEvent(new CustomEvent('newsVeille:sourcesUpdated'));
+    toast({
+      title: "Settings Saved",
+      description: "Your settings have been saved successfully.",
+    });
+  } catch (error) {
+    console.error('Failed to save settings:', error);
+    toast({
+      title: "Save Failed",
+      description: "Failed to save settings.",
+      variant: "destructive"
+    });
+  }
+};
+
+const resetSettings = () => {
+  setSettings(defaultSettings);
+  try {
+    localStorage.setItem('newsVeilleSettings', JSON.stringify(defaultSettings));
+    window.dispatchEvent(new CustomEvent('newsVeille:sourcesUpdated'));
+  } catch {}
+  toast({
+    title: "Settings Reset",
+    description: "All settings have been reset to defaults.",
+  });
+};
 
   const addSource = () => {
     if (!newSource.name.trim() || !newSource.url.trim()) {
@@ -304,15 +326,16 @@ export const Settings = () => {
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="General">General</SelectItem>
-                <SelectItem value="Technology">Technology</SelectItem>
-                <SelectItem value="Politics">Politics</SelectItem>
-                <SelectItem value="Sports">Sports</SelectItem>
-                <SelectItem value="Business">Business</SelectItem>
-                <SelectItem value="International">International</SelectItem>
-                <SelectItem value="Tunisia">Tunisia</SelectItem>
-              </SelectContent>
+<SelectContent>
+  <SelectItem value="General">General</SelectItem>
+  <SelectItem value="Technology">Technology</SelectItem>
+  <SelectItem value="Politics">Politics</SelectItem>
+  <SelectItem value="Sports">Sports</SelectItem>
+  <SelectItem value="Business">Business</SelectItem>
+  <SelectItem value="International">International</SelectItem>
+  <SelectItem value="Tunisia">Tunisia</SelectItem>
+  <SelectItem value="Algeria">Algeria</SelectItem>
+</SelectContent>
             </Select>
             <Button onClick={addSource} className="w-full">
               <Plus className="w-4 h-4 mr-2" />
@@ -362,15 +385,16 @@ export const Settings = () => {
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="General">General</SelectItem>
-                        <SelectItem value="Technology">Technology</SelectItem>
-                        <SelectItem value="Politics">Politics</SelectItem>
-                        <SelectItem value="Sports">Sports</SelectItem>
-                        <SelectItem value="Business">Business</SelectItem>
-                        <SelectItem value="International">International</SelectItem>
-                        <SelectItem value="Tunisia">Tunisia</SelectItem>
-                      </SelectContent>
+<SelectContent>
+  <SelectItem value="General">General</SelectItem>
+  <SelectItem value="Technology">Technology</SelectItem>
+  <SelectItem value="Politics">Politics</SelectItem>
+  <SelectItem value="Sports">Sports</SelectItem>
+  <SelectItem value="Business">Business</SelectItem>
+  <SelectItem value="International">International</SelectItem>
+  <SelectItem value="Tunisia">Tunisia</SelectItem>
+  <SelectItem value="Algeria">Algeria</SelectItem>
+</SelectContent>
                     </Select>
                     <Select
                       value={source.interval?.toString() || '15'}
