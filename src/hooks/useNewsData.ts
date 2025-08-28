@@ -13,9 +13,6 @@ const NEWS_SOURCES: NewsSource[] = [
 // Multiple CORS proxy services as fallbacks (prioritize raw XML to avoid item caps)
 const CORS_PROXIES = [
   'https://api.codetabs.com/v1/proxy?quest=',
-  'https://api.allorigins.win/raw?url=',
-  'https://api.allorigins.win/get?url=',
-  'https://r.jina.ai',
   'https://api.rss2json.com/v1/api.json?rss_url=',
 ];
 
@@ -216,28 +213,31 @@ export const useNewsData = () => {
             });
             console.log(`Got ${initial.length} items from original URL for ${source.name}`);
 
-            // 2) WordPress-style /feed/ pagination (auto-applied for any domain)
+            // 2) WordPress-style /feed/ pagination (only for known WP domains)
             try {
               const u = new URL(source.url);
-              const origin = u.origin;
-              const feedBase = `${origin}/feed/`;
-              let page = 1;
+              const wpDomains = new Set(['www.echoroukonline.com','www.ennaharonline.com','www.mosaiquefm.net']);
+              if (wpDomains.has(u.hostname)) {
+                const origin = u.origin;
+                const feedBase = `${origin}/feed/`;
+                let page = 1;
                 while (page <= MAX_PAGES_PER_SOURCE) {
-                const pagedUrl = page === 1 ? feedBase : `${feedBase}?paged=${page}`;
-                const pageArticles = await parseRSSFeed({ ...source, url: pagedUrl });
-                if (pageArticles.length === 0) break;
-                const before = collected.length;
-                pageArticles.forEach((a) => {
-                  if (a.link && !seen.has(a.link)) {
-                    seen.add(a.link);
-                    collected.push(a);
-                  }
-                });
-                const added = collected.length - before;
-                console.log(`Page ${page} from ${feedBase} added ${added} new items for ${source.name}`);
-                if (added === 0) break; // stop when no new items are discovered
-                page++;
-                await new Promise((r) => setTimeout(r, 600));
+                  const pagedUrl = page === 1 ? feedBase : `${feedBase}?paged=${page}`;
+                  const pageArticles = await parseRSSFeed({ ...source, url: pagedUrl });
+                  if (pageArticles.length === 0) break;
+                  const before = collected.length;
+                  pageArticles.forEach((a) => {
+                    if (a.link && !seen.has(a.link)) {
+                      seen.add(a.link);
+                      collected.push(a);
+                    }
+                  });
+                  const added = collected.length - before;
+                  console.log(`Page ${page} from ${feedBase} added ${added} new items for ${source.name}`);
+                  if (added === 0) break; // stop when no new items are discovered
+                  page++;
+                  await new Promise((r) => setTimeout(r, 600));
+                }
               }
             } catch {}
 
@@ -293,6 +293,7 @@ export const useNewsData = () => {
       
       if (isInitialLoad) {
         setArticles(articlesWithReadStatus);
+        try { localStorage.setItem('newsVeilleArticles', JSON.stringify(articlesWithReadStatus)); } catch {}
       } else {
         setArticles(prevArticles => {
           const existingLinks = new Set(prevArticles.map(a => a.link));
@@ -302,7 +303,9 @@ export const useNewsData = () => {
           const filteredArticles = mergedArticles;
           
           console.log(`Added ${newArticles.length} new articles, total: ${filteredArticles.length}`);
-          return filteredArticles.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
+          const sorted = filteredArticles.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
+          try { localStorage.setItem('newsVeilleArticles', JSON.stringify(sorted)); } catch {}
+          return sorted;
         });
       }
       
@@ -363,7 +366,13 @@ export const useNewsData = () => {
   }, [articles]);
 
   useEffect(() => {
-    // Initial load - fetch last 24 hours
+    // Show cached articles immediately if available
+    try {
+      const cached = JSON.parse(localStorage.getItem('newsVeilleArticles') || '[]');
+      if (Array.isArray(cached) && cached.length) setArticles(cached);
+    } catch {}
+
+    // Initial load - fetch latest
     fetchAllNews(true);
     
     // Set up auto-refresh based on user settings (default 15 minutes)
