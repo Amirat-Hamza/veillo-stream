@@ -91,6 +91,10 @@ export const SearchAndFilters = ({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="0">All</SelectItem>
+            <SelectItem value="1">1h</SelectItem>
+            <SelectItem value="2">2h</SelectItem>
+            <SelectItem value="3">3h</SelectItem>
+            <SelectItem value="6">6h</SelectItem>
             <SelectItem value="12">12h</SelectItem>
             <SelectItem value="24">24h</SelectItem>
             <SelectItem value="36">36h</SelectItem>
