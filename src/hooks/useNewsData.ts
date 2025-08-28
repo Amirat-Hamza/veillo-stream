@@ -13,10 +13,11 @@ const NEWS_SOURCES: NewsSource[] = [
 // Multiple CORS proxy services as fallbacks (prioritize raw XML to avoid item caps)
 const CORS_PROXIES = [
   'https://r.jina.ai/',
-  'https://api.rss2json.com/v1/api.json?rss_url=',
   'https://api.allorigins.win/raw?url=',
   'https://api.allorigins.win/get?url=',
+  'https://cors.isomorphic-git.org/',
   'https://api.codetabs.com/v1/proxy?quest=',
+  'https://api.rss2json.com/v1/api.json?rss_url=',
 ];
 
 
@@ -132,10 +133,13 @@ export const useNewsData = () => {
         
         console.log(`Successfully fetched from ${source.name} using proxy ${i + 1}`);
         
-        // Parse the RSS/Atom XML
+        // Parse the RSS/Atom XML (guard against non-XML blocker pages)
+        const xmlText = typeof data === 'string' ? data : String(data ?? '');
+        if (!xmlText.trim().startsWith('<')) {
+          throw new Error('Non-XML response from proxy');
+        }
         const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(data as string, 'text/xml');
-        
+        const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
         const parseError = xmlDoc.querySelector('parsererror');
         if (parseError) throw new Error('XML parsing error: ' + parseError.textContent);
         
