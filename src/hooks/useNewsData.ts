@@ -8,7 +8,7 @@ const NEWS_SOURCES: NewsSource[] = [
   { name: 'Mosaique FM', url: 'https://www.mosaiquefm.net/rss', category: 'Tunisia' },
 ];
 
-// Multiple CORS proxy services as fallbacks (prioritize raw XML to avoid item limits)
+// Multiple CORS proxy services as fallbacks (prioritize raw XML to avoid item caps)
 const CORS_PROXIES = [
   // Prefer raw XML proxies that don’t cap items
   'https://api.codetabs.com/v1/proxy?quest=',
@@ -17,8 +17,6 @@ const CORS_PROXIES = [
   'https://thingproxy.freeboard.io/fetch/',
   'https://cors.lol/',
   'https://cors-anywhere.herokuapp.com/',
-  // As a last resort only (may cap items)
-  'https://api.rss2json.com/v1/api.json?rss_url=',
 ];
 
 
