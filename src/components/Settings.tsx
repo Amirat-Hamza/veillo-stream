@@ -18,6 +18,8 @@ interface SettingsData {
   dndStart: string;
   dndEnd: string;
   selectedAiProvider: string;
+  selectedModel: string;
+  availableModels: string[];
   openaiApiKey: string;
   geminiApiKey: string;
   deepseekApiKey: string;
@@ -43,6 +45,8 @@ const defaultSettings: SettingsData = {
   dndStart: '22:00',
   dndEnd: '08:00',
   selectedAiProvider: 'openai',
+  selectedModel: '',
+  availableModels: [],
   openaiApiKey: '',
   geminiApiKey: '',
   deepseekApiKey: '',
@@ -59,6 +63,7 @@ export const Settings = () => {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [newSource, setNewSource] = useState({ name: '', url: '', category: 'General' });
   const [showApiKeys, setShowApiKeys] = useState(false);
+  const [modelLoading, setModelLoading] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -288,6 +293,114 @@ const resetSettings = () => {
     
     reader.readAsText(file);
     event.target.value = ''; // Reset file input
+  };
+
+  // Function to detect available models based on API key
+  const detectModels = async (provider: string, apiKey: string) => {
+    if (!apiKey.trim()) {
+      setSettings(prev => ({ ...prev, availableModels: [], selectedModel: '' }));
+      return;
+    }
+
+    setModelLoading(true);
+    try {
+      let models: string[] = [];
+      
+      switch (provider) {
+        case 'openai':
+          try {
+            const response = await fetch('https://api.openai.com/v1/models', {
+              headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+              },
+            });
+            
+            if (response.ok) {
+              const data = await response.json();
+              models = data.data
+                .filter((model: any) => model.id.includes('gpt'))
+                .map((model: any) => model.id)
+                .sort();
+            } else {
+              // Fallback to common OpenAI models if API call fails
+              models = ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'];
+            }
+          } catch {
+            models = ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-3.5-turbo'];
+          }
+          break;
+
+        case 'gemini':
+          // Google Gemini models (predefined as they don't have a public models endpoint)
+          models = ['gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-pro', 'gemini-pro-vision'];
+          break;
+
+        case 'deepseek':
+          // DeepSeek models
+          models = ['deepseek-chat', 'deepseek-coder', 'deepseek-v2-chat'];
+          break;
+
+        case 'claude':
+          // Anthropic Claude models
+          models = [
+            'claude-3-5-sonnet-20241022', 
+            'claude-3-opus-20240229', 
+            'claude-3-sonnet-20240229',
+            'claude-3-haiku-20240307'
+          ];
+          break;
+
+        case 'huggingface':
+          // Popular HuggingFace models for text generation
+          models = [
+            'meta-llama/Meta-Llama-3.1-8B-Instruct',
+            'microsoft/DialoGPT-medium',
+            'mistralai/Mistral-7B-Instruct-v0.1',
+            'google/flan-t5-large',
+            'facebook/blenderbot-400M-distill'
+          ];
+          break;
+      }
+
+      setSettings(prev => ({
+        ...prev,
+        availableModels: models,
+        selectedModel: models.length > 0 ? models[0] : ''
+      }));
+
+      if (models.length > 0) {
+        toast({
+          title: "Models Detected",
+          description: `Found ${models.length} available models for ${provider}`,
+        });
+      }
+    } catch (error) {
+      console.error('Error detecting models:', error);
+      toast({
+        title: "Model Detection Failed",
+        description: "Using default models for this provider",
+        variant: "destructive"
+      });
+    } finally {
+      setModelLoading(false);
+    }
+  };
+
+  // Handle API key changes
+  const handleApiKeyChange = (provider: string, value: string) => {
+    const keyMap: Record<string, keyof SettingsData> = {
+      openai: 'openaiApiKey',
+      gemini: 'geminiApiKey',
+      deepseek: 'deepseekApiKey',
+      claude: 'claudeApiKey',
+      huggingface: 'huggingfaceApiKey'
+    };
+    
+    setSettings(prev => ({ ...prev, [keyMap[provider]]: value }));
+    
+    // Detect models after a short delay to avoid too many API calls
+    setTimeout(() => detectModels(provider, value), 500);
   };
 
   return (
@@ -657,7 +770,7 @@ const resetSettings = () => {
                       type="password"
                       placeholder="sk-..."
                       value={settings.openaiApiKey}
-                      onChange={(e) => setSettings(prev => ({ ...prev, openaiApiKey: e.target.value }))}
+                      onChange={(e) => handleApiKeyChange('openai', e.target.value)}
                     />
                     <p className="text-xs text-muted-foreground">Used for ChatGPT and GPT-4 models</p>
                   </div>
@@ -671,7 +784,7 @@ const resetSettings = () => {
                       type="password"
                       placeholder="AIza..."
                       value={settings.geminiApiKey}
-                      onChange={(e) => setSettings(prev => ({ ...prev, geminiApiKey: e.target.value }))}
+                      onChange={(e) => handleApiKeyChange('gemini', e.target.value)}
                     />
                     <p className="text-xs text-muted-foreground">Used for Gemini Pro and Flash models</p>
                   </div>
@@ -685,7 +798,7 @@ const resetSettings = () => {
                       type="password"
                       placeholder="sk-..."
                       value={settings.deepseekApiKey}
-                      onChange={(e) => setSettings(prev => ({ ...prev, deepseekApiKey: e.target.value }))}
+                      onChange={(e) => handleApiKeyChange('deepseek', e.target.value)}
                     />
                     <p className="text-xs text-muted-foreground">Used for DeepSeek-V2 and Coder models</p>
                   </div>
@@ -699,7 +812,7 @@ const resetSettings = () => {
                       type="password"
                       placeholder="sk-ant-..."
                       value={settings.claudeApiKey}
-                      onChange={(e) => setSettings(prev => ({ ...prev, claudeApiKey: e.target.value }))}
+                      onChange={(e) => handleApiKeyChange('claude', e.target.value)}
                     />
                     <p className="text-xs text-muted-foreground">Used for Claude 3.5 Sonnet and Opus models</p>
                   </div>
@@ -713,9 +826,39 @@ const resetSettings = () => {
                       type="password"
                       placeholder="hf_..."
                       value={settings.huggingfaceApiKey}
-                      onChange={(e) => setSettings(prev => ({ ...prev, huggingfaceApiKey: e.target.value }))}
+                      onChange={(e) => handleApiKeyChange('huggingface', e.target.value)}
                     />
                     <p className="text-xs text-muted-foreground">Used for open source AI models</p>
+                  </div>
+                )}
+
+                {/* Model Selection - appears when models are detected */}
+                {settings.availableModels.length > 0 && (
+                  <div className="space-y-2 pt-4 border-t">
+                    <Label className="flex items-center gap-2">
+                      Available Models
+                      {modelLoading && (
+                        <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                      )}
+                    </Label>
+                    <Select
+                      value={settings.selectedModel}
+                      onValueChange={(value) => setSettings(prev => ({ ...prev, selectedModel: value }))}
+                    >
+                      <SelectTrigger className="bg-background border border-border">
+                        <SelectValue placeholder="Select a model..." />
+                      </SelectTrigger>
+                      <SelectContent className="bg-background border border-border z-50">
+                        {settings.availableModels.map((model) => (
+                          <SelectItem key={model} value={model}>
+                            {model}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground">
+                      {settings.availableModels.length} model{settings.availableModels.length !== 1 ? 's' : ''} detected for your API key
+                    </p>
                   </div>
                 )}
               </div>
