@@ -65,12 +65,17 @@ export const NewsVeille = () => {
   // Build available sources from settings and articles
   useEffect(() => {
     const names = new Set<string>(articles.map(a => a.source));
+    const fallback = ['BBC News','Al Jazeera','Echorouk Online','Ennahar Online','TAP','Mosaique FM'];
     try {
       const s = JSON.parse(localStorage.getItem('newsVeilleSettings') || '{}');
-      if (Array.isArray(s.rssSources)) {
+      if (Array.isArray(s.rssSources) && s.rssSources.length) {
         s.rssSources.forEach((src: any) => { if (src?.name) names.add(src.name); });
+      } else {
+        fallback.forEach(n => names.add(n));
       }
-    } catch {}
+    } catch {
+      fallback.forEach(n => names.add(n));
+    }
     setAvailableSources(Array.from(names).sort());
   }, [articles, showSettings, lastUpdate]);
 
