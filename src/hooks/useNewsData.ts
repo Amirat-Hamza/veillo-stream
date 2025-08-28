@@ -189,7 +189,7 @@ export const useNewsData = () => {
 
       let hasRenderedFirstBatch = false;
 
-      // Helper to apply read status and append to state immediately
+      // Helper to apply read status and append to state immediately (avoiding duplicates)
       const appendArticles = (batch: NewsArticle[]) => {
         if (!batch || batch.length === 0) return;
         const readArticles = JSON.parse(localStorage.getItem('readArticles') || '[]');
@@ -198,7 +198,13 @@ export const useNewsData = () => {
           isRead: readArticles.includes(a.link),
         }));
         setArticles(prev => {
-          const combined = [...prev, ...withRead];
+          // Filter out duplicates by checking existing links
+          const existingLinks = new Set(prev.map(article => article.link));
+          const newArticles = withRead.filter(article => !existingLinks.has(article.link));
+          
+          if (newArticles.length === 0) return prev; // No new articles
+          
+          const combined = [...prev, ...newArticles];
           combined.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
           return combined;
         });
