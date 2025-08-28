@@ -64,7 +64,7 @@ export const useNewsData = () => {
         const doFetch = (url: string, init: RequestInit) => fetchWithTimeout(url, init);
         if (proxy.includes('rss2json.com')) {
           // RSS2JSON returns JSON with items array
-          response = await doFetch(`${proxy}${encodeURIComponent(source.url)}&count=200`, {
+          response = await doFetch(`${proxy}${encodeURIComponent(source.url)}`, {
             method: 'GET',
             headers: {
               'Accept': 'application/json',
