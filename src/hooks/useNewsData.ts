@@ -4,6 +4,8 @@ import { NewsArticle, NewsSource, ReadingStats } from '@/types/news';
 const NEWS_SOURCES: NewsSource[] = [
   { name: 'BBC News', url: 'https://feeds.bbci.co.uk/news/rss.xml', category: 'International' },
   { name: 'Al Jazeera', url: 'https://www.aljazeera.com/xml/rss/all.xml', category: 'International' },
+  { name: 'Echorouk Online', url: 'https://www.echoroukonline.com/rss', category: 'Algeria' },
+  { name: 'Ennahar Online', url: 'https://www.ennaharonline.com/rss', category: 'Algeria' },
   { name: 'TAP', url: 'https://www.tap.info.tn/rss', category: 'Tunisia' },
   { name: 'Mosaique FM', url: 'https://www.mosaiquefm.net/rss', category: 'Tunisia' },
 ];
@@ -17,6 +19,8 @@ const CORS_PROXIES = [
   'https://thingproxy.freeboard.io/fetch/',
   'https://cors.lol/',
   'https://cors-anywhere.herokuapp.com/',
+  // Last resort JSON transformer (may cap per page, but we paginate to get all)
+  'https://api.rss2json.com/v1/api.json?rss_url=',
 ];
 
 
