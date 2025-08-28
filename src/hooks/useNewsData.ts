@@ -64,7 +64,7 @@ export const useNewsData = () => {
         const doFetch = (url: string, init: RequestInit) => fetchWithTimeout(url, init);
         if (proxy.includes('rss2json.com')) {
           // RSS2JSON returns JSON with items array
-          response = await doFetch(`${proxy}${encodeURIComponent(source.url)}`, {
+          response = await doFetch(`${proxy}${encodeURIComponent(source.url)}&count=200`, {
             method: 'GET',
             headers: {
               'Accept': 'application/json',
@@ -75,7 +75,7 @@ export const useNewsData = () => {
           if (json.status !== 'ok' || !Array.isArray(json.items)) {
             throw new Error('Invalid rss2json response');
           }
-          console.log(`Successfully fetched (rss2json) from ${source.name} using proxy ${i + 1}`);
+          console.log(`Successfully fetched (rss2json) from ${source.name} using proxy ${i + 1} with count=${json.items?.length ?? 0}`);
           return json.items.map((item: any, index: number) => {
             const title = item.title || '';
             const description = (item.description || '').replace(/<[^>]*>/g, '');
