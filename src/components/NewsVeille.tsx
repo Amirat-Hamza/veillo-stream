@@ -106,6 +106,8 @@ export const NewsVeille = () => {
   };
 
   const filteredArticles = useMemo(() => {
+    const now = Date.now();
+    const threshold = now - timeRange * 60 * 60 * 1000;
     return articles.filter(article => {
       if (searchTerm && !article.title.toLowerCase().includes(searchTerm.toLowerCase()) && 
           !article.description.toLowerCase().includes(searchTerm.toLowerCase())) {
@@ -120,9 +122,14 @@ export const NewsVeille = () => {
       if (showUnreadOnly && article.isRead) {
         return false;
       }
+      // Apply client-side time filtering for instant feedback (0 = All)
+      if (timeRange > 0) {
+        const pub = new Date(article.pubDate).getTime();
+        if (isNaN(pub) || pub < threshold) return false;
+      }
       return true;
     });
-  }, [articles, searchTerm, selectedSource, selectedCategory, showUnreadOnly]);
+  }, [articles, searchTerm, selectedSource, selectedCategory, showUnreadOnly, timeRange]);
 
 
   const categories = useMemo(() => 
