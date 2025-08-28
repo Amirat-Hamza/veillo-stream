@@ -12,20 +12,21 @@ const NEWS_SOURCES: NewsSource[] = [
 
 // Multiple CORS proxy services as fallbacks (prioritize raw XML to avoid item caps)
 const CORS_PROXIES = [
-  // Prefer raw XML proxies that don’t cap items
-  'https://api.codetabs.com/v1/proxy?quest=',
+  // Fast, CORS-friendly mirror first
+  'https://r.jina.ai/',
+  // Reliable raw/XML passthrough
   'https://api.allorigins.win/raw?url=',
+  // General proxies
+  'https://api.codetabs.com/v1/proxy?quest=',
   'https://api.allorigins.win/get?url=',
-  'https://thingproxy.freeboard.io/fetch/',
-  'https://cors.lol/',
-  'https://cors-anywhere.herokuapp.com/',
-  // Last resort JSON transformer (may cap per page, but we paginate to get all)
+  // Last resort JSON transformer (may cap per page)
   'https://api.rss2json.com/v1/api.json?rss_url=',
 ];
 
 
-// Add a small timeout to avoid being stuck on a slow proxy/feed
-const REQUEST_TIMEOUT_MS = 15000; // 15s per attempt
+// Add reasonable timeouts and pagination caps to avoid long hangs
+const REQUEST_TIMEOUT_MS = 6000; // 6s per attempt
+const MAX_PAGES_PER_SOURCE = 3; // limit pagination to avoid long waits
 
 const fetchWithTimeout = async (
   input: RequestInfo | URL,
@@ -227,7 +228,7 @@ export const useNewsData = () => {
               const origin = u.origin;
               const feedBase = `${origin}/feed/`;
               let page = 1;
-              while (true) {
+              while (page <= MAX_PAGES_PER_SOURCE) {
                 const pagedUrl = page === 1 ? feedBase : `${feedBase}?paged=${page}`;
                 const pageArticles = await parseRSSFeed({ ...source, url: pagedUrl });
                 if (pageArticles.length === 0) break;
@@ -248,7 +249,7 @@ export const useNewsData = () => {
             // 3) If URL hints at RSS path, also try ?paged=N on the original path
             if (source.url.includes('/rss')) {
               let page = 2; // start at 2, since original URL already fetched
-              while (true) {
+              while (page <= MAX_PAGES_PER_SOURCE) {
                 const pagedUrl = `${source.url}?paged=${page}`;
                 const pageArticles = await parseRSSFeed({ ...source, url: pagedUrl });
                 if (pageArticles.length === 0) break;
