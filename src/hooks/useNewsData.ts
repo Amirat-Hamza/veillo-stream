@@ -12,8 +12,8 @@ const NEWS_SOURCES: NewsSource[] = [
 
 // Multiple CORS proxy services as fallbacks (prioritize raw XML to avoid item caps)
 const CORS_PROXIES = [
-  'https://api.codetabs.com/v1/proxy?quest=',
   'https://api.rss2json.com/v1/api.json?rss_url=',
+  'https://api.codetabs.com/v1/proxy?quest=',
 ];
 
 
@@ -232,7 +232,7 @@ export const useNewsData = () => {
               const origin = u.origin;
               const feedBase = `${origin}/feed/`;
               let page = 2; // page 1 already fetched via initial
-              while (page <= 100) { // safety cap
+              while (page <= MAX_PAGES_PER_SOURCE) { // paginate until empty
                 const pagedUrl = `${feedBase}?paged=${page}`;
                 console.log(`Fetching ${source.name} page ${page}: ${pagedUrl}`);
                 const pageArticles = await parseRSSFeed({ ...source, url: pagedUrl });
