@@ -4,28 +4,23 @@ import { NewsArticle, NewsSource, ReadingStats } from '@/types/news';
 const NEWS_SOURCES: NewsSource[] = [
   { name: 'BBC News', url: 'https://feeds.bbci.co.uk/news/rss.xml', category: 'International' },
   { name: 'Al Jazeera', url: 'https://www.aljazeera.com/xml/rss/all.xml', category: 'International' },
-  { name: 'Echorouk Online', url: 'https://www.echoroukonline.com/rss', category: 'Algeria' },
-  { name: 'Ennahar Online', url: 'https://www.ennaharonline.com/rss', category: 'Algeria' },
+  { name: 'Echorouk Online', url: 'https://www.echoroukonline.com/feed/', category: 'Algeria' },
+  { name: 'Ennahar Online', url: 'https://www.ennaharonline.com/feed/', category: 'Algeria' },
   { name: 'TAP', url: 'https://www.tap.info.tn/rss', category: 'Tunisia' },
   { name: 'Mosaique FM', url: 'https://www.mosaiquefm.net/rss', category: 'Tunisia' },
 ];
 
 // Multiple CORS proxy services as fallbacks (prioritize raw XML to avoid item caps)
 const CORS_PROXIES = [
-  // Fast, CORS-friendly mirror first
-  'https://r.jina.ai/',
-  // Reliable raw/XML passthrough
   'https://api.allorigins.win/raw?url=',
-  // General proxies
-  'https://api.codetabs.com/v1/proxy?quest=',
   'https://api.allorigins.win/get?url=',
-  // Last resort JSON transformer (may cap per page)
+  'https://api.codetabs.com/v1/proxy?quest=',
   'https://api.rss2json.com/v1/api.json?rss_url=',
 ];
 
 
 // Add reasonable timeouts and pagination caps to avoid long hangs
-const REQUEST_TIMEOUT_MS = 6000; // 6s per attempt
+const REQUEST_TIMEOUT_MS = 10000; // 10s per attempt
 const MAX_PAGES_PER_SOURCE = 3; // limit pagination to avoid long waits
 
 const fetchWithTimeout = async (
@@ -51,10 +46,15 @@ export const useNewsData = () => {
   const parseRSSFeed = async (source: NewsSource): Promise<NewsArticle[]> => {
     console.log(`Attempting to fetch ${source.name} from ${source.url}`);
     
-    for (let i = 0; i < CORS_PROXIES.length; i++) {
-      const proxy = CORS_PROXIES[i];
-      console.log(`Trying proxy ${i + 1}/${CORS_PROXIES.length}: ${proxy}`);
-      
+    const host = (() => { try { return new URL(source.url).hostname; } catch { return ''; } })();
+    const wpBlockedHosts = new Set(['www.echoroukonline.com','echoroukonline.com','www.ennaharonline.com','ennaharonline.com']);
+    const proxies = wpBlockedHosts.has(host)
+      ? ['https://api.rss2json.com/v1/api.json?rss_url=','https://api.allorigins.win/raw?url=','https://api.allorigins.win/get?url=','https://api.codetabs.com/v1/proxy?quest=']
+      : CORS_PROXIES;
+    
+    for (let i = 0; i < proxies.length; i++) {
+      const proxy = proxies[i];
+      console.log(`Trying proxy ${i + 1}/${proxies.length}: ${proxy}`);
       try {
         let response;
         let data: string | any;
