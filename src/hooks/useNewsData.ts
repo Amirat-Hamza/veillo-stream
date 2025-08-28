@@ -21,7 +21,7 @@ const CORS_PROXIES = [
 
 
 // Add reasonable timeouts and pagination caps to avoid long hangs
-const REQUEST_TIMEOUT_MS = 6000; // 6s per attempt
+const REQUEST_TIMEOUT_MS = 10000; // 10s per attempt
 const MAX_PAGES_PER_SOURCE = Infinity; // unlimited pagination; will stop when no new items are found
 
 const fetchWithTimeout = async (
@@ -222,7 +222,7 @@ export const useNewsData = () => {
               const origin = u.origin;
               const feedBase = `${origin}/feed/`;
               let page = 1;
-                while (page <= (isInitialLoad ? 1 : MAX_PAGES_PER_SOURCE)) {
+                while (page <= MAX_PAGES_PER_SOURCE) {
                 const pagedUrl = page === 1 ? feedBase : `${feedBase}?paged=${page}`;
                 const pageArticles = await parseRSSFeed({ ...source, url: pagedUrl });
                 if (pageArticles.length === 0) break;
@@ -244,7 +244,7 @@ export const useNewsData = () => {
             // 3) If URL hints at RSS path, also try ?paged=N on the original path
             if (source.url.includes('/rss')) {
               let page = 2; // start at 2, since original URL already fetched
-              while (page <= (isInitialLoad ? 1 : MAX_PAGES_PER_SOURCE)) {
+              while (page <= MAX_PAGES_PER_SOURCE) {
                 const pagedUrl = `${source.url}?paged=${page}`;
                 const pageArticles = await parseRSSFeed({ ...source, url: pagedUrl });
                 if (pageArticles.length === 0) break;
