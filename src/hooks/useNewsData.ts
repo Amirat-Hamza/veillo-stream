@@ -13,10 +13,12 @@ const NEWS_SOURCES: NewsSource[] = [
 // Multiple CORS proxy services as fallbacks (prioritize raw XML to avoid item caps)
 const CORS_PROXIES = [
   'https://api.codetabs.com/v1/proxy?quest=',
-  'https://r.jina.ai/',
+  'https://corsproxy.io/?',
+  'https://cors.isomorphic-git.org/',
   'https://api.allorigins.win/raw?url=',
   'https://api.allorigins.win/get?url=',
-  'https://cors.isomorphic-git.org/',
+  'https://thingproxy.freeboard.io/fetch/',
+  'https://r.jina.ai/',
   'https://api.rss2json.com/v1/api.json?rss_url=',
 ];
 
@@ -56,37 +58,157 @@ export const useNewsData = () => {
       ? ['https://api.rss2json.com/v1/api.json?rss_url=', ...CORS_PROXIES.filter(p => !p.includes('rss2json.com'))]
       : CORS_PROXIES;
     
-    for (let i = 0; i < proxies.length; i++) {
-      const proxy = proxies[i];
-      console.log(`Trying proxy ${i + 1}/${proxies.length}: ${proxy}`);
-      try {
-        let response;
-        let data: string | any;
+    // Build alternative URL candidates for problematic sources (e.g., Tunisienumerique)
+    const urlCandidates: string[] = [source.url];
+    if (host.includes('tunisienumerique.com')) {
+      const origin = u.origin;
+      const alts = [
+        `${origin}/feed/`,
+        `${origin}/?feed=rss2`,
+        `${origin}/feed-actualites-tunisie.xml`,
+      ];
+      for (const alt of alts) {
+        if (!urlCandidates.includes(alt)) urlCandidates.push(alt);
+      }
+    }
+    
+    for (const currentUrl of urlCandidates) {
+      console.log(`Trying URL candidate: ${currentUrl}`);
+      for (let i = 0; i < proxies.length; i++) {
+        const proxy = proxies[i];
+        console.log(`Trying proxy ${i + 1}/${proxies.length}: ${proxy}`);
+        try {
+          let response;
+          let data: string | any;
 
-        const doFetch = (url: string, init: RequestInit) => fetchWithTimeout(url, init);
-        if (proxy.includes('rss2json.com')) {
-          // RSS2JSON returns JSON with items array
-          response = await doFetch(`${proxy}${encodeURIComponent(source.url)}`, {
-            method: 'GET',
-            headers: {
-              'Accept': 'application/json',
+          const doFetch = (url: string, init: RequestInit) => fetchWithTimeout(url, init);
+          if (proxy.includes('rss2json.com')) {
+            // RSS2JSON returns JSON with items array
+            response = await doFetch(`${proxy}${encodeURIComponent(currentUrl)}`, {
+              method: 'GET',
+              headers: {
+                'Accept': 'application/json',
+              }
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            const json = await response.json();
+            if (json.status !== 'ok' || !Array.isArray(json.items)) {
+              throw new Error('Invalid rss2json response');
             }
-          });
-          if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-          const json = await response.json();
-          if (json.status !== 'ok' || !Array.isArray(json.items)) {
-            throw new Error('Invalid rss2json response');
+            console.log(`Successfully fetched (rss2json) from ${source.name} using proxy ${i + 1} with count=${json.items?.length ?? 0}`);
+            // Map and filter to last 4 days directly
+            const fourDaysAgo = new Date();
+            fourDaysAgo.setDate(fourDaysAgo.getDate() - DAYS_TO_FETCH);
+            const mapped = json.items.map((item: any, index: number) => {
+              const title = item.title || '';
+              const description = (item.description || '').replace(/<[^>]*>/g, '');
+              const link = item.link || '';
+              const pubDate = item.pubDate || new Date().toISOString();
+              return {
+                id: `${source.name}-${index}-${Date.now()}`,
+                title: title.trim(),
+                description: description.trim(),
+                link,
+                pubDate,
+                source: source.name,
+                category: source.category,
+                isRead: false,
+              } as NewsArticle;
+            }).filter((a: NewsArticle) => new Date(a.pubDate) >= fourDaysAgo);
+            return mapped;
+          } else if (proxy.includes('allorigins.win/get')) {
+            // AllOrigins JSON wrapper
+            response = await doFetch(`${proxy}${encodeURIComponent(currentUrl)}`, {
+              method: 'GET',
+              headers: {
+                'Accept': 'application/json',
+              }
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            const jsonData = await response.json();
+            data = jsonData.contents as string;
+          } else if (proxy.includes('allorigins.win/raw')) {
+            // AllOrigins raw passthrough
+            response = await doFetch(`${proxy}${encodeURIComponent(currentUrl)}`, {
+              method: 'GET',
+              headers: {
+                'Accept': 'application/rss+xml, application/xml, text/xml',
+              }
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            data = await response.text();
+          } else if (proxy.includes('r.jina.ai')) {
+            const proxiedUrl = `https://r.jina.ai/${currentUrl}`;
+            response = await doFetch(proxiedUrl, {
+              method: 'GET',
+              headers: {
+                'Accept': 'application/rss+xml, application/xml, text/xml',
+              }
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            data = await response.text();
+          } else {
+            // Standard proxy format
+            response = await doFetch(`${proxy}${currentUrl}`, {
+              method: 'GET',
+              headers: {
+                'Accept': 'application/rss+xml, application/xml, text/xml',
+              }
+            });
+            if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            data = await response.text();
           }
-          console.log(`Successfully fetched (rss2json) from ${source.name} using proxy ${i + 1} with count=${json.items?.length ?? 0}`);
-          return json.items.map((item: any, index: number) => {
-            const title = item.title || '';
-            const description = (item.description || '').replace(/<[^>]*>/g, '');
-            const link = item.link || '';
-            const pubDate = item.pubDate || new Date().toISOString();
+          
+          console.log(`Successfully fetched from ${source.name} using proxy ${i + 1}`);
+          
+          // Parse the RSS/Atom XML (guard against non-XML blocker pages)
+          const xmlText = typeof data === 'string' ? data : String(data ?? '');
+          if (!xmlText.trim().startsWith('<')) {
+            throw new Error('Non-XML response from proxy');
+          }
+          
+          // Sanitize and parse with XML, then fall back to HTML if needed (more forgiving)
+          const cleaned = xmlText
+            .replace(/&nbsp;/g, ' ')
+            .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
+          const parser = new DOMParser();
+          let xmlDoc = parser.parseFromString(cleaned, 'text/xml');
+          let parseError = xmlDoc.querySelector('parsererror');
+          if (parseError) {
+            console.warn('XML parsing failed, trying HTML fallback...', parseError.textContent);
+            xmlDoc = parser.parseFromString(cleaned, 'text/html');
+          }
+          
+          // Support both RSS <item> and Atom <entry>
+          let items = Array.from(xmlDoc.querySelectorAll('item'));
+          if (items.length === 0) {
+            items = Array.from(xmlDoc.querySelectorAll('entry'));
+          }
+          console.log(`Found ${items.length} items in ${source.name} feed`);
+          
+          // Calculate the cutoff date (4 days ago)
+          const fourDaysAgo = new Date();
+          fourDaysAgo.setDate(fourDaysAgo.getDate() - DAYS_TO_FETCH);
+          
+          const articles = items.map((item, index) => {
+            const title = item.querySelector('title')?.textContent || '';
+            const description = item.querySelector('description')?.textContent
+              || item.querySelector('summary')?.textContent
+              || '';
+            const link =
+              item.querySelector('link')?.getAttribute('href') // Atom
+              || item.querySelector('link')?.textContent        // RSS
+              || '';
+            const pubDate =
+              item.querySelector('pubDate')?.textContent
+              || item.querySelector('updated')?.textContent
+              || item.querySelector('published')?.textContent
+              || new Date().toISOString();
+            
             return {
               id: `${source.name}-${index}-${Date.now()}`,
-              title: title.trim(),
-              description: description.trim(),
+              title: title.replace(/<!\[CDATA\[|\]\]>/g, '').trim(),
+              description: (description || '').replace(/<!\[CDATA\[|\]\]>/g, '').replace(/<[^>]*>/g, '').trim(),
               link,
               pubDate,
               source: source.name,
@@ -94,118 +216,19 @@ export const useNewsData = () => {
               isRead: false,
             } as NewsArticle;
           });
-        } else if (proxy.includes('allorigins.win/get')) {
-          // AllOrigins JSON wrapper
-          response = await doFetch(`${proxy}${encodeURIComponent(source.url)}`, {
-            method: 'GET',
-            headers: {
-              'Accept': 'application/json',
-            }
-          });
-          if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-          const jsonData = await response.json();
-          data = jsonData.contents as string;
-        } else if (proxy.includes('allorigins.win/raw')) {
-          // AllOrigins raw passthrough
-          response = await doFetch(`${proxy}${encodeURIComponent(source.url)}`, {
-            method: 'GET',
-            headers: {
-              'Accept': 'application/rss+xml, application/xml, text/xml',
-            }
-          });
-          if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-          data = await response.text();
-        } else if (proxy.includes('r.jina.ai')) {
-          const proxiedUrl = `https://r.jina.ai/${source.url}`;
-          response = await doFetch(proxiedUrl, {
-            method: 'GET',
-            headers: {
-              'Accept': 'application/rss+xml, application/xml, text/xml',
-            }
-          });
-          if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-          data = await response.text();
-        } else {
-          // Standard proxy format
-          response = await doFetch(`${proxy}${source.url}`, {
-            method: 'GET',
-            headers: {
-              'Accept': 'application/rss+xml, application/xml, text/xml',
-            }
-          });
-          if (!response.ok) throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-          data = await response.text();
-        }
-        
-        console.log(`Successfully fetched from ${source.name} using proxy ${i + 1}`);
-        
-        // Parse the RSS/Atom XML (guard against non-XML blocker pages)
-        const xmlText = typeof data === 'string' ? data : String(data ?? '');
-        if (!xmlText.trim().startsWith('<')) {
-          throw new Error('Non-XML response from proxy');
-        }
-        
-        // Sanitize and parse with XML, then fall back to HTML if needed (more forgiving)
-        const cleaned = xmlText
-          .replace(/&nbsp;/g, ' ')
-          .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
-        const parser = new DOMParser();
-        let xmlDoc = parser.parseFromString(cleaned, 'text/xml');
-        let parseError = xmlDoc.querySelector('parsererror');
-        if (parseError) {
-          console.warn('XML parsing failed, trying HTML fallback...', parseError.textContent);
-          xmlDoc = parser.parseFromString(cleaned, 'text/html');
-        }
-        
-        // Support both RSS <item> and Atom <entry>
-        let items = Array.from(xmlDoc.querySelectorAll('item'));
-        if (items.length === 0) {
-          items = Array.from(xmlDoc.querySelectorAll('entry'));
-        }
-        console.log(`Found ${items.length} items in ${source.name} feed`);
-        
-        // Calculate the cutoff date (4 days ago)
-        const fourDaysAgo = new Date();
-        fourDaysAgo.setDate(fourDaysAgo.getDate() - DAYS_TO_FETCH);
-        
-        const articles = items.map((item, index) => {
-          const title = item.querySelector('title')?.textContent || '';
-          const description = item.querySelector('description')?.textContent
-            || item.querySelector('summary')?.textContent
-            || '';
-          const link =
-            item.querySelector('link')?.getAttribute('href') // Atom
-            || item.querySelector('link')?.textContent        // RSS
-            || '';
-          const pubDate =
-            item.querySelector('pubDate')?.textContent
-            || item.querySelector('updated')?.textContent
-            || item.querySelector('published')?.textContent
-            || new Date().toISOString();
-          
-          return {
-            id: `${source.name}-${index}-${Date.now()}`,
-            title: title.replace(/<!\[CDATA\[|\]\]>/g, '').trim(),
-            description: (description || '').replace(/<!\[CDATA\[|\]\]>/g, '').replace(/<[^>]*>/g, '').trim(),
-            link,
-            pubDate,
-            source: source.name,
-            category: source.category,
-            isRead: false,
-          } as NewsArticle;
-        });
 
-        // Filter to only include articles from the last 4 days
-        const recentArticles = articles.filter(article => {
-          const articleDate = new Date(article.pubDate);
-          return articleDate >= fourDaysAgo;
-        });
+          // Filter to only include articles from the last 4 days
+          const recentArticles = articles.filter(article => {
+            const articleDate = new Date(article.pubDate);
+            return articleDate >= fourDaysAgo;
+          });
 
-        console.log(`Filtered to ${recentArticles.length} articles from last ${DAYS_TO_FETCH} days for ${source.name}`);
-        return recentArticles;
-      } catch (error) {
-        console.error(`Proxy ${i + 1} failed for ${source.name}:`, error);
-        continue;
+          console.log(`Filtered to ${recentArticles.length} articles from last ${DAYS_TO_FETCH} days for ${source.name}`);
+          return recentArticles;
+        } catch (error) {
+          console.error(`Proxy ${i + 1} failed for ${source.name}:`, error);
+          continue;
+        }
       }
     }
     return [];
