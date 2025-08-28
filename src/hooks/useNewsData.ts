@@ -202,17 +202,19 @@ export const useNewsData = () => {
       let hasRenderedFirstBatch = false;
 
       // Helper to apply read status and append to state immediately (avoiding duplicates)
-      const appendArticles = (batch: NewsArticle[]) => {
-        if (!batch || batch.length === 0) return;
+      const appendArticles = (batch: NewsArticle[]): number => {
+        if (!batch || batch.length === 0) return 0;
         const readArticles = JSON.parse(localStorage.getItem('readArticles') || '[]');
         const withRead = batch.map(a => ({
           ...a,
           isRead: readArticles.includes(a.link),
         }));
+
+        let addedCount = 0;
         setArticles(prev => {
-          // Filter out duplicates by checking existing links
           const existingLinks = new Set(prev.map(article => article.link));
           const newArticles = withRead.filter(article => !existingLinks.has(article.link));
+          addedCount = newArticles.length;
           
           if (newArticles.length === 0) return prev; // No new articles
           
@@ -224,6 +226,7 @@ export const useNewsData = () => {
           hasRenderedFirstBatch = true;
           setLoading(false); // show UI as soon as we have something
         }
+        return addedCount;
       };
 
       console.log(`Progressively fetching from ${enabledSources.length} sources`);
@@ -240,23 +243,37 @@ export const useNewsData = () => {
         }
         appendArticles(initial); // keep duplicates
 
-        // 2) Paginate ONLY for known WordPress domains using /feed/?paged=N (attempt even if initial failed)
+        // 2) Paginate ONLY for known WordPress domains using /feed/?paged=N or /page/N/?feed=rss2
         try {
           const u = new URL(source.url);
           const wpDomains = new Set(['www.echoroukonline.com','www.ennaharonline.com']);
           if (wpDomains.has(u.hostname)) {
             const origin = u.origin;
             const feedBase = `${origin}/feed/`;
-            let page = 2; // page 1 already tried above
-            while (page <= MAX_PAGES_PER_SOURCE) { // paginate until empty
+            let page = initial.length > 0 ? 2 : 1; // if initial failed, start at page 1
+            while (page <= MAX_PAGES_PER_SOURCE) { // paginate until empty/new items stop
               const pagedUrl = `${feedBase}?paged=${page}`;
               console.log(`Fetching ${source.name} page ${page}: ${pagedUrl}`);
-              const pageArticles = await parseRSSFeed({ ...source, url: pagedUrl });
+              let pageArticles = await parseRSSFeed({ ...source, url: pagedUrl });
+
+              // Fallback pattern for some WP setups
+              if (pageArticles.length === 0) {
+                const altUrl = `${origin}/page/${page}/?feed=rss2`;
+                console.log(`Fallback fetch ${source.name} page ${page}: ${altUrl}`);
+                pageArticles = await parseRSSFeed({ ...source, url: altUrl });
+              }
+
               if (pageArticles.length === 0) {
                 console.log(`${source.name}: reached end at page ${page}`);
                 break;
               }
-              appendArticles(pageArticles); // keep duplicates
+
+              const added = appendArticles(pageArticles);
+              if (added === 0) {
+                console.log(`${source.name}: no new items at page ${page} -> stopping`);
+                break;
+              }
+
               page++;
               await new Promise(r => setTimeout(r, 200)); // gentle rate limit
             }
