@@ -12,10 +12,10 @@ const NEWS_SOURCES: NewsSource[] = [
 
 // Multiple CORS proxy services as fallbacks (prioritize raw XML to avoid item caps)
 const CORS_PROXIES = [
+  'https://api.rss2json.com/v1/api.json?rss_url=',
   'https://api.allorigins.win/raw?url=',
   'https://api.allorigins.win/get?url=',
   'https://api.codetabs.com/v1/proxy?quest=',
-  'https://api.rss2json.com/v1/api.json?rss_url=',
 ];
 
 
@@ -173,9 +173,6 @@ export const useNewsData = () => {
         });
       } catch (error) {
         console.error(`Proxy ${i + 1} failed for ${source.name}:`, error);
-        if (i === proxies.length - 1) {
-          throw error;
-        }
         continue;
       }
     }
@@ -239,6 +236,7 @@ export const useNewsData = () => {
                 console.log(`Page ${page} from ${feedBase} added ${added} new items for ${source.name}`);
                 if (added === 0) break; // stop when no new items are discovered
                 page++;
+                await new Promise((r) => setTimeout(r, 600));
               }
             } catch {}
 
@@ -260,6 +258,7 @@ export const useNewsData = () => {
                 console.log(`RSS paged ${page} from ${source.url} added ${added} new items for ${source.name}`);
                 if (added === 0) break;
                 page++;
+                await new Promise((r) => setTimeout(r, 600));
               }
             }
 
