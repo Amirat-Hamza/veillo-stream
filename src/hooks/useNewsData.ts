@@ -178,113 +178,80 @@ export const useNewsData = () => {
   };
 
   const fetchAllNews = useCallback(async (isInitialLoad = true) => {
-    console.log('Starting to fetch ALL articles (including duplicates)...');
+    console.log('Starting progressive fetch of ALL articles (including duplicates)...');
     setLoading(true);
     try {
-      const allArticles: NewsArticle[] = [];
-      
       const settings = JSON.parse(localStorage.getItem('newsVeilleSettings') || '{}');
       const configuredSources: NewsSource[] = (Array.isArray(settings.rssSources) && settings.rssSources.length > 0)
         ? settings.rssSources
         : NEWS_SOURCES;
       const enabledSources = configuredSources.filter(source => source.enabled !== false);
-      
-      console.log(`Fetching ALL articles from ${enabledSources.length} enabled sources (NO deduplication)`);
-      
-      const results = await Promise.allSettled(
-        enabledSources.map(async (source) => {
-          console.log(`Fetching ALL articles from ${source.name}...`);
+
+      let hasRenderedFirstBatch = false;
+
+      // Helper to apply read status and append to state immediately
+      const appendArticles = (batch: NewsArticle[]) => {
+        if (!batch || batch.length === 0) return;
+        const readArticles = JSON.parse(localStorage.getItem('readArticles') || '[]');
+        const withRead = batch.map(a => ({
+          ...a,
+          isRead: readArticles.includes(a.link),
+        }));
+        setArticles(prev => {
+          const combined = [...prev, ...withRead];
+          combined.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
+          return combined;
+        });
+        if (!hasRenderedFirstBatch) {
+          hasRenderedFirstBatch = true;
+          setLoading(false); // show UI as soon as we have something
+        }
+      };
+
+      console.log(`Progressively fetching from ${enabledSources.length} sources`);
+
+      for (const source of enabledSources) {
+        console.log(`→ Source: ${source.name}`);
+        try {
+          // 1) Fetch the main feed first
+          const initial = await parseRSSFeed(source);
+          console.log(`${source.name}: initial batch size ${initial.length}`);
+          appendArticles(initial); // keep duplicates
+
+          // 2) Paginate ONLY for known WordPress domains using /feed/?paged=N
           try {
-            const collected: NewsArticle[] = [];
-
-            // 1) Original feed URL - get ALL articles
-            const initial = await parseRSSFeed(source);
-            collected.push(...initial); // Keep ALL articles, including duplicates
-            console.log(`Got ${initial.length} articles from original URL for ${source.name}`);
-
-            // 2) WordPress-style /feed/ pagination - fetch ALL pages
-            try {
-              const u = new URL(source.url);
-              const wpDomains = new Set(['www.echoroukonline.com','www.ennaharonline.com','www.mosaiquefm.net']);
-              if (wpDomains.has(u.hostname)) {
-                const origin = u.origin;
-                const feedBase = `${origin}/feed/`;
-                let page = 2; // Start from page 2 since page 1 was already fetched
-                while (page <= 100) { // Reasonable limit to prevent infinite loops
-                  const pagedUrl = `${feedBase}?paged=${page}`;
-                  const pageArticles = await parseRSSFeed({ ...source, url: pagedUrl });
-                  if (pageArticles.length === 0) {
-                    console.log(`✓ ${source.name}: Reached end at page ${page}`);
-                    break;
-                  }
-                  collected.push(...pageArticles); // Keep ALL articles, including duplicates
-                  console.log(`Page ${page} from ${feedBase} added ${pageArticles.length} articles for ${source.name} (total: ${collected.length})`);
-                  page++;
-                  await new Promise((r) => setTimeout(r, 600)); // Rate limiting
-                }
-              }
-            } catch {}
-
-            // 3) If URL hints at RSS path, also try ?paged=N on the original path
-            if (source.url.includes('/rss')) {
-              let page = 2; // start at 2, since original URL already fetched
-              while (page <= 100) {
-                const pagedUrl = `${source.url}?paged=${page}`;
+            const u = new URL(source.url);
+            const wpDomains = new Set(['www.echoroukonline.com','www.ennaharonline.com']);
+            if (wpDomains.has(u.hostname)) {
+              const origin = u.origin;
+              const feedBase = `${origin}/feed/`;
+              let page = 2; // page 1 already fetched via initial
+              while (page <= 100) { // safety cap
+                const pagedUrl = `${feedBase}?paged=${page}`;
+                console.log(`Fetching ${source.name} page ${page}: ${pagedUrl}`);
                 const pageArticles = await parseRSSFeed({ ...source, url: pagedUrl });
-                if (pageArticles.length === 0) break;
-                collected.push(...pageArticles); // Keep ALL articles, including duplicates
-                console.log(`RSS paged ${page} from ${source.url} added ${pageArticles.length} articles for ${source.name} (total: ${collected.length})`);
+                if (pageArticles.length === 0) {
+                  console.log(`${source.name}: reached end at page ${page}`);
+                  break;
+                }
+                appendArticles(pageArticles); // keep duplicates
                 page++;
-                await new Promise((r) => setTimeout(r, 600));
+                await new Promise(r => setTimeout(r, 200)); // gentle rate limit
               }
             }
-
-            console.log(`✓ Collected ${collected.length} TOTAL articles (including duplicates) for ${source.name}`);
-            return collected;
-
-          } catch (error) {
-            console.error(`Failed to fetch from ${source.name}:`, error);
-            return [] as NewsArticle[];
+          } catch (err) {
+            console.warn(`${source.name}: pagination check failed`, err);
           }
-        })
-      );
-
-      results.forEach((res) => {
-        if (res.status === 'fulfilled') {
-          allArticles.push(...res.value); // Keep ALL articles including duplicates
+        } catch (error) {
+          console.error(`Failed to fetch from ${source.name}:`, error);
         }
-      });
-
-      console.log(`TOTAL articles fetched (including duplicates): ${allArticles.length}`);
-
-      // Sort by date but keep ALL articles including duplicates
-      allArticles.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
-      
-      const readArticles = JSON.parse(localStorage.getItem('readArticles') || '[]');
-      const articlesWithReadStatus = allArticles.map(article => ({
-        ...article,
-        isRead: readArticles.includes(article.link),
-      }));
-
-      console.log(`Setting ${articlesWithReadStatus.length} articles with read status (including duplicates)`);
-      
-      if (isInitialLoad) {
-        setArticles(articlesWithReadStatus);
-      } else {
-        setArticles(prevArticles => {
-          // Add ALL new articles without deduplication
-          const combined = [...prevArticles, ...articlesWithReadStatus];
-          const sorted = combined.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
-          
-          console.log(`Added ${articlesWithReadStatus.length} articles, total archive: ${sorted.length} (including duplicates)`);
-          return sorted;
-        });
       }
-      
+
       setLastUpdate(new Date());
     } catch (error) {
       console.error('Error fetching news:', error);
     } finally {
+      // Ensure loading is cleared even if nothing was fetched
       setLoading(false);
     }
   }, []);
