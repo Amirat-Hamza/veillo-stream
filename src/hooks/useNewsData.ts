@@ -143,10 +143,18 @@ export const useNewsData = () => {
         if (!xmlText.trim().startsWith('<')) {
           throw new Error('Non-XML response from proxy');
         }
+        
+        // Sanitize and parse with XML, then fall back to HTML if needed (more forgiving)
+        const cleaned = xmlText
+          .replace(/&nbsp;/g, ' ')
+          .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '');
         const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(xmlText, 'text/xml');
-        const parseError = xmlDoc.querySelector('parsererror');
-        if (parseError) throw new Error('XML parsing error: ' + parseError.textContent);
+        let xmlDoc = parser.parseFromString(cleaned, 'text/xml');
+        let parseError = xmlDoc.querySelector('parsererror');
+        if (parseError) {
+          console.warn('XML parsing failed, trying HTML fallback...', parseError.textContent);
+          xmlDoc = parser.parseFromString(cleaned, 'text/html');
+        }
         
         // Support both RSS <item> and Atom <entry>
         let items = Array.from(xmlDoc.querySelectorAll('item'));
@@ -266,6 +274,8 @@ export const useNewsData = () => {
             };
 
             let page = initial.length > 0 ? 2 : 1; // if initial failed, start at page 1
+            let consecutiveEmpty = 0;
+            let consecutiveNoNew = 0;
             while (page <= MAX_PAGES_PER_SOURCE) { // paginate until empty/new items stop
               let pageArticles: NewsArticle[] = [];
               const candidates = buildPagedCandidates(page);
@@ -277,14 +287,29 @@ export const useNewsData = () => {
               }
 
               if (pageArticles.length === 0) {
-                console.log(`${source.name}: reached end at page ${page}`);
-                break;
+                consecutiveEmpty++;
+                console.log(`${source.name}: empty page ${page} (${consecutiveEmpty} in a row)`);
+                if (consecutiveEmpty >= 3) {
+                  console.log(`${source.name}: reached end after ${consecutiveEmpty} empty pages`);
+                  break;
+                }
+                page++;
+                await new Promise(r => setTimeout(r, 200));
+                continue;
+              } else {
+                consecutiveEmpty = 0;
               }
 
               const added = appendArticles(pageArticles);
               if (added === 0) {
-                console.log(`${source.name}: no new items at page ${page} -> stopping`);
-                break;
+                consecutiveNoNew++;
+                console.log(`${source.name}: no new items at page ${page} (${consecutiveNoNew} in a row)`);
+                if (consecutiveNoNew >= 2) {
+                  console.log(`${source.name}: stopping after consecutive no-new pages`);
+                  break;
+                }
+              } else {
+                consecutiveNoNew = 0;
               }
 
               page++;
