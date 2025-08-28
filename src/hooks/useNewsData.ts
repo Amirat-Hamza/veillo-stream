@@ -24,6 +24,7 @@ const CORS_PROXIES = [
 // Add reasonable timeouts and pagination caps to avoid long hangs
 const REQUEST_TIMEOUT_MS = 10000; // 10s per attempt
 const MAX_PAGES_PER_SOURCE = Infinity; // unlimited pagination; will stop when no new items are found
+const DAYS_TO_FETCH = 4; // Only fetch articles from the last 4 days
 
 const fetchWithTimeout = async (
   input: RequestInfo | URL,
@@ -163,7 +164,11 @@ export const useNewsData = () => {
         }
         console.log(`Found ${items.length} items in ${source.name} feed`);
         
-        return items.map((item, index) => {
+        // Calculate the cutoff date (4 days ago)
+        const fourDaysAgo = new Date();
+        fourDaysAgo.setDate(fourDaysAgo.getDate() - DAYS_TO_FETCH);
+        
+        const articles = items.map((item, index) => {
           const title = item.querySelector('title')?.textContent || '';
           const description = item.querySelector('description')?.textContent
             || item.querySelector('summary')?.textContent
@@ -189,6 +194,15 @@ export const useNewsData = () => {
             isRead: false,
           } as NewsArticle;
         });
+
+        // Filter to only include articles from the last 4 days
+        const recentArticles = articles.filter(article => {
+          const articleDate = new Date(article.pubDate);
+          return articleDate >= fourDaysAgo;
+        });
+
+        console.log(`Filtered to ${recentArticles.length} articles from last ${DAYS_TO_FETCH} days for ${source.name}`);
+        return recentArticles;
       } catch (error) {
         console.error(`Proxy ${i + 1} failed for ${source.name}:`, error);
         continue;
@@ -276,6 +290,10 @@ export const useNewsData = () => {
             let page = initial.length > 0 ? 2 : 1; // if initial failed, start at page 1
             let consecutiveEmpty = 0;
             let consecutiveNoNew = 0;
+            let consecutiveOldPages = 0;
+            const fourDaysAgo = new Date();
+            fourDaysAgo.setDate(fourDaysAgo.getDate() - DAYS_TO_FETCH);
+            
             while (page <= MAX_PAGES_PER_SOURCE) { // paginate until empty/new items stop
               let pageArticles: NewsArticle[] = [];
               const candidates = buildPagedCandidates(page);
@@ -298,6 +316,23 @@ export const useNewsData = () => {
                 continue;
               } else {
                 consecutiveEmpty = 0;
+              }
+
+              // Check if all articles in this page are older than 4 days
+              const hasRecentArticles = pageArticles.some(article => {
+                const articleDate = new Date(article.pubDate);
+                return articleDate >= fourDaysAgo;
+              });
+
+              if (!hasRecentArticles && pageArticles.length > 0) {
+                consecutiveOldPages++;
+                console.log(`${source.name}: page ${page} has only old articles (${consecutiveOldPages} in a row)`);
+                if (consecutiveOldPages >= 2) {
+                  console.log(`${source.name}: stopping - reached articles older than ${DAYS_TO_FETCH} days`);
+                  break;
+                }
+              } else if (hasRecentArticles) {
+                consecutiveOldPages = 0;
               }
 
               const added = appendArticles(pageArticles);
