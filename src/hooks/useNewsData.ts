@@ -293,18 +293,17 @@ export const useNewsData = () => {
       
       if (isInitialLoad) {
         setArticles(articlesWithReadStatus);
-        try { localStorage.setItem('newsVeilleArticles', JSON.stringify(articlesWithReadStatus)); } catch {}
       } else {
         setArticles(prevArticles => {
+          // Keep all previous articles, only add truly new ones
           const existingLinks = new Set(prevArticles.map(a => a.link));
           const newArticles = articlesWithReadStatus.filter(a => !existingLinks.has(a.link));
           
-          const mergedArticles = [...newArticles, ...prevArticles];
-          const filteredArticles = mergedArticles;
+          // Don't lose existing articles - combine and sort
+          const combined = [...prevArticles, ...newArticles];
+          const sorted = combined.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
           
-          console.log(`Added ${newArticles.length} new articles, total: ${filteredArticles.length}`);
-          const sorted = filteredArticles.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
-          try { localStorage.setItem('newsVeilleArticles', JSON.stringify(sorted)); } catch {}
+          console.log(`Added ${newArticles.length} new articles, total: ${sorted.length}`);
           return sorted;
         });
       }
@@ -366,12 +365,6 @@ export const useNewsData = () => {
   }, [articles]);
 
   useEffect(() => {
-    // Show cached articles immediately if available
-    try {
-      const cached = JSON.parse(localStorage.getItem('newsVeilleArticles') || '[]');
-      if (Array.isArray(cached) && cached.length) setArticles(cached);
-    } catch {}
-
     // Initial load - fetch latest
     fetchAllNews(true);
     
