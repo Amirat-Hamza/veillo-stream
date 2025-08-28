@@ -204,10 +204,66 @@ export const useNewsData = () => {
         enabledSources.map(async (source) => {
           console.log(`Fetching from ${source.name}...`);
           try {
-            const sourceArticles = await parseRSSFeed(source);
-            console.log(`Got ${sourceArticles.length} total articles from ${source.name}`);
-            // Do not time-filter here. Return all articles with a valid link.
-            return sourceArticles.filter(article => !!article.link);
+            const seen = new Set<string>();
+            const collected: NewsArticle[] = [];
+
+            // 1) Original feed URL
+            const initial = await parseRSSFeed(source);
+            initial.forEach((a) => {
+              if (a.link && !seen.has(a.link)) {
+                seen.add(a.link);
+                collected.push(a);
+              }
+            });
+            console.log(`Got ${initial.length} items from original URL for ${source.name}`);
+
+            // 2) WordPress-style /feed/ pagination (auto-applied for any domain)
+            try {
+              const u = new URL(source.url);
+              const origin = u.origin;
+              const feedBase = `${origin}/feed/`;
+              let page = 1;
+              while (true) {
+                const pagedUrl = page === 1 ? feedBase : `${feedBase}?paged=${page}`;
+                const pageArticles = await parseRSSFeed({ ...source, url: pagedUrl });
+                if (pageArticles.length === 0) break;
+                const before = collected.length;
+                pageArticles.forEach((a) => {
+                  if (a.link && !seen.has(a.link)) {
+                    seen.add(a.link);
+                    collected.push(a);
+                  }
+                });
+                const added = collected.length - before;
+                console.log(`Page ${page} from ${feedBase} added ${added} new items for ${source.name}`);
+                if (added === 0) break; // stop when no new items are discovered
+                page++;
+              }
+            } catch {}
+
+            // 3) If URL hints at RSS path, also try ?paged=N on the original path
+            if (source.url.includes('/rss')) {
+              let page = 2; // start at 2, since original URL already fetched
+              while (true) {
+                const pagedUrl = `${source.url}?paged=${page}`;
+                const pageArticles = await parseRSSFeed({ ...source, url: pagedUrl });
+                if (pageArticles.length === 0) break;
+                const before = collected.length;
+                pageArticles.forEach((a) => {
+                  if (a.link && !seen.has(a.link)) {
+                    seen.add(a.link);
+                    collected.push(a);
+                  }
+                });
+                const added = collected.length - before;
+                console.log(`RSS paged ${page} from ${source.url} added ${added} new items for ${source.name}`);
+                if (added === 0) break;
+                page++;
+              }
+            }
+
+            console.log(`Collected ${collected.length} unique articles for ${source.name}`);
+            return collected;
 
           } catch (error) {
             console.error(`Failed to fetch from ${source.name}:`, error);
