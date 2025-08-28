@@ -16,6 +16,8 @@ const CORS_PROXIES = [
   'https://api.allorigins.win/raw?url=',
   // AllOrigins JSON wrapper (we handle .contents)
   'https://api.allorigins.win/get?url=',
+  // Codetabs public CORS proxy
+  'https://api.codetabs.com/v1/proxy?quest=',
   // Other generic proxies
   'https://thingproxy.freeboard.io/fetch/',
   'https://cors.lol/',
@@ -258,8 +260,9 @@ export const useNewsData = () => {
           const newArticles = articlesWithReadStatus.filter(a => !existingLinks.has(a.link));
           
           const mergedArticles = [...newArticles, ...prevArticles];
-          const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-          const filteredArticles = mergedArticles.filter(a => new Date(a.pubDate) >= sevenDaysAgo);
+          const filteredArticles = (timeRangeHours === 0)
+            ? mergedArticles
+            : mergedArticles.filter(a => new Date(a.pubDate) >= timeThreshold);
           
           console.log(`Added ${newArticles.length} new articles, total: ${filteredArticles.length}`);
           return filteredArticles.sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime());
