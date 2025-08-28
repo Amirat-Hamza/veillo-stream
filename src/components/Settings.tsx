@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Trash2, GripVertical, Download, Upload, Save, RotateCcw } from 'lucide-react';
+import { Plus, Trash2, GripVertical, Download, Upload, Save, RotateCcw, ExternalLink } from 'lucide-react';
 import { NewsSource } from '@/types/news';
 
 interface SettingsData {
@@ -17,7 +17,11 @@ interface SettingsData {
   soundNotifications: boolean;
   dndStart: string;
   dndEnd: string;
+  selectedAiProvider: string;
   openaiApiKey: string;
+  geminiApiKey: string;
+  deepseekApiKey: string;
+  claudeApiKey: string;
   huggingfaceApiKey: string;
   encryptionEnabled: boolean;
   encryptionPassphrase: string;
@@ -38,7 +42,11 @@ const defaultSettings: SettingsData = {
   soundNotifications: true,
   dndStart: '22:00',
   dndEnd: '08:00',
+  selectedAiProvider: 'openai',
   openaiApiKey: '',
+  geminiApiKey: '',
+  deepseekApiKey: '',
+  claudeApiKey: '',
   huggingfaceApiKey: '',
   encryptionEnabled: false,
   encryptionPassphrase: '',
@@ -508,7 +516,7 @@ const resetSettings = () => {
         </CardContent>
       </Card>
 
-      {/* API Keys */}
+      {/* AI Provider Selection & API Keys */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
@@ -523,31 +531,196 @@ const resetSettings = () => {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          {showApiKeys && (
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>OpenAI API Key</Label>
-                <Input
-                  type="password"
-                  placeholder="sk-..."
-                  value={settings.openaiApiKey}
-                  onChange={(e) => setSettings(prev => ({ ...prev, openaiApiKey: e.target.value }))}
-                />
-                <p className="text-xs text-muted-foreground">Used for AI summaries and advanced features</p>
-              </div>
-
-              <div className="space-y-2">
-                <Label>HuggingFace API Key</Label>
-                <Input
-                  type="password"
-                  placeholder="hf_..."
-                  value={settings.huggingfaceApiKey}
-                  onChange={(e) => setSettings(prev => ({ ...prev, huggingfaceApiKey: e.target.value }))}
-                />
-                <p className="text-xs text-muted-foreground">Alternative for AI summaries</p>
-              </div>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>AI Provider</Label>
+              <Select
+                value={settings.selectedAiProvider}
+                onValueChange={(value) => setSettings(prev => ({ ...prev, selectedAiProvider: value }))}
+              >
+                <SelectTrigger className="bg-background border border-border">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-background border border-border z-50">
+                  <SelectItem value="openai">
+                    <div className="flex items-center justify-between w-full">
+                      <span>🧠 OpenAI (ChatGPT)</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="gemini">
+                    <div className="flex items-center justify-between w-full">
+                      <span>🔮 Google Gemini</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="deepseek">
+                    <div className="flex items-center justify-between w-full">
+                      <span>🚀 DeepSeek</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="claude">
+                    <div className="flex items-center justify-between w-full">
+                      <span>🎭 Anthropic Claude</span>
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="huggingface">
+                    <div className="flex items-center justify-between w-full">
+                      <span>🤗 Hugging Face</span>
+                    </div>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-          )}
+
+            {/* Dynamic Get API Keys Button */}
+            <div className="flex justify-center">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const urls: Record<string, string> = {
+                    openai: 'https://platform.openai.com/api-keys',
+                    gemini: 'https://aistudio.google.com/app/apikey',
+                    deepseek: 'https://platform.deepseek.com/api_keys',
+                    claude: 'https://console.anthropic.com/settings/keys',
+                    huggingface: 'https://huggingface.co/settings/tokens'
+                  };
+                  window.open(urls[settings.selectedAiProvider], '_blank');
+                }}
+                className="w-auto"
+              >
+                <ExternalLink className="w-4 h-4 mr-2" />
+                Get {settings.selectedAiProvider === 'openai' ? 'OpenAI' : 
+                     settings.selectedAiProvider === 'gemini' ? 'Google Gemini' :
+                     settings.selectedAiProvider === 'deepseek' ? 'DeepSeek' :
+                     settings.selectedAiProvider === 'claude' ? 'Anthropic Claude' :
+                     'Hugging Face'} API Key
+              </Button>
+            </div>
+
+            {/* Provider Info Cards */}
+            {settings.selectedAiProvider === 'openai' && (
+              <div className="p-3 bg-muted/50 rounded-lg border">
+                <h4 className="font-medium mb-2">🧠 OpenAI (ChatGPT)</h4>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Models: GPT-4, GPT-3.5 Turbo<br/>
+                  Pricing: Pay-per-use (requires billing setup)
+                </p>
+              </div>
+            )}
+
+            {settings.selectedAiProvider === 'gemini' && (
+              <div className="p-3 bg-muted/50 rounded-lg border">
+                <h4 className="font-medium mb-2">🔮 Google Gemini</h4>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Models: Gemini Pro, Gemini Flash<br/>
+                  Pricing: Has free tier, then pay-per-use
+                </p>
+              </div>
+            )}
+
+            {settings.selectedAiProvider === 'deepseek' && (
+              <div className="p-3 bg-muted/50 rounded-lg border">
+                <h4 className="font-medium mb-2">🚀 DeepSeek</h4>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Models: DeepSeek-V2, DeepSeek-Coder<br/>
+                  Pricing: Very affordable, competitive rates
+                </p>
+              </div>
+            )}
+
+            {settings.selectedAiProvider === 'claude' && (
+              <div className="p-3 bg-muted/50 rounded-lg border">
+                <h4 className="font-medium mb-2">🎭 Anthropic Claude</h4>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Models: Claude 3.5 Sonnet, Claude 3 Opus<br/>
+                  Pricing: Pay-per-use
+                </p>
+              </div>
+            )}
+
+            {settings.selectedAiProvider === 'huggingface' && (
+              <div className="p-3 bg-muted/50 rounded-lg border">
+                <h4 className="font-medium mb-2">🤗 Hugging Face</h4>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Models: Open source models, Llama, Mistral<br/>
+                  Pricing: Many free models available
+                </p>
+              </div>
+            )}
+
+            {showApiKeys && (
+              <div className="space-y-4 pt-4 border-t">
+                {/* OpenAI API Key */}
+                {settings.selectedAiProvider === 'openai' && (
+                  <div className="space-y-2">
+                    <Label>OpenAI API Key</Label>
+                    <Input
+                      type="password"
+                      placeholder="sk-..."
+                      value={settings.openaiApiKey}
+                      onChange={(e) => setSettings(prev => ({ ...prev, openaiApiKey: e.target.value }))}
+                    />
+                    <p className="text-xs text-muted-foreground">Used for ChatGPT and GPT-4 models</p>
+                  </div>
+                )}
+
+                {/* Gemini API Key */}
+                {settings.selectedAiProvider === 'gemini' && (
+                  <div className="space-y-2">
+                    <Label>Google Gemini API Key</Label>
+                    <Input
+                      type="password"
+                      placeholder="AIza..."
+                      value={settings.geminiApiKey}
+                      onChange={(e) => setSettings(prev => ({ ...prev, geminiApiKey: e.target.value }))}
+                    />
+                    <p className="text-xs text-muted-foreground">Used for Gemini Pro and Flash models</p>
+                  </div>
+                )}
+
+                {/* DeepSeek API Key */}
+                {settings.selectedAiProvider === 'deepseek' && (
+                  <div className="space-y-2">
+                    <Label>DeepSeek API Key</Label>
+                    <Input
+                      type="password"
+                      placeholder="sk-..."
+                      value={settings.deepseekApiKey}
+                      onChange={(e) => setSettings(prev => ({ ...prev, deepseekApiKey: e.target.value }))}
+                    />
+                    <p className="text-xs text-muted-foreground">Used for DeepSeek-V2 and Coder models</p>
+                  </div>
+                )}
+
+                {/* Claude API Key */}
+                {settings.selectedAiProvider === 'claude' && (
+                  <div className="space-y-2">
+                    <Label>Anthropic Claude API Key</Label>
+                    <Input
+                      type="password"
+                      placeholder="sk-ant-..."
+                      value={settings.claudeApiKey}
+                      onChange={(e) => setSettings(prev => ({ ...prev, claudeApiKey: e.target.value }))}
+                    />
+                    <p className="text-xs text-muted-foreground">Used for Claude 3.5 Sonnet and Opus models</p>
+                  </div>
+                )}
+
+                {/* HuggingFace API Key */}
+                {settings.selectedAiProvider === 'huggingface' && (
+                  <div className="space-y-2">
+                    <Label>HuggingFace API Key</Label>
+                    <Input
+                      type="password"
+                      placeholder="hf_..."
+                      value={settings.huggingfaceApiKey}
+                      onChange={(e) => setSettings(prev => ({ ...prev, huggingfaceApiKey: e.target.value }))}
+                    />
+                    <p className="text-xs text-muted-foreground">Used for open source AI models</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 
