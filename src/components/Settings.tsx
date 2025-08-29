@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Plus, Trash2, GripVertical, Download, Upload, Save, RotateCcw, ExternalLink, Edit2 } from 'lucide-react';
 import { NewsSource } from '@/types/news';
 import { useApiModels } from '@/hooks/useApiModels';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface ApiKeyConfig {
   id: string;
@@ -70,6 +71,7 @@ export const Settings = () => {
     selectedModel: ''
   });
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   useEffect(() => {
     loadSettings();
@@ -100,8 +102,8 @@ const loadSettings = () => {
   } catch (error) {
     console.error('Failed to load settings:', error);
     toast({
-      title: "Settings Load Failed",
-      description: "Using default settings.",
+      title: t('settingsLoadFailed'),
+      description: t('usingDefaultSettings'),
       variant: "destructive"
     });
   }
@@ -536,37 +538,37 @@ const resetSettings = () => {
   return (
     <div className="container mx-auto px-4 py-6 space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Settings</h1>
+        <h1 className="text-3xl font-bold">{t('settings')}</h1>
         <div className="flex gap-2">
           <Button onClick={resetSettings} variant="outline" size="sm">
             <RotateCcw className="w-4 h-4 mr-2" />
-            Reset
+            {t('reset')}
           </Button>
           <Button onClick={saveSettings} size="sm">
             <Save className="w-4 h-4 mr-2" />
-            Save Settings
+            {t('saveSettings')}
           </Button>
         </div>
-      </div>
+        </div>
 
       {/* RSS Sources Management */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            📡 RSS Sources
-            <Badge variant="secondary">{settings.rssSources.length} sources</Badge>
+            📡 {t('rssSources')}
+            <Badge variant="secondary">{settings.rssSources.length} {t('sources')}</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Add New Source */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-3 p-4 border rounded-lg bg-muted/50">
             <Input
-              placeholder="Source name"
+              placeholder={t('sourceName')}
               value={newSource.name}
               onChange={(e) => setNewSource(prev => ({ ...prev, name: e.target.value }))}
             />
             <Input
-              placeholder="RSS URL"
+              placeholder={t('rssUrl')}
               value={newSource.url}
               onChange={(e) => setNewSource(prev => ({ ...prev, url: e.target.value }))}
             />
@@ -578,14 +580,14 @@ const resetSettings = () => {
                 <SelectValue />
               </SelectTrigger>
 <SelectContent>
-  <SelectItem value="General">General</SelectItem>
-  <SelectItem value="Technology">Technology</SelectItem>
-  <SelectItem value="Politics">Politics</SelectItem>
-  <SelectItem value="Sports">Sports</SelectItem>
-  <SelectItem value="Business">Business</SelectItem>
-  <SelectItem value="International">International</SelectItem>
-  <SelectItem value="Tunisia">Tunisia</SelectItem>
-  <SelectItem value="Algeria">Algeria</SelectItem>
+  <SelectItem value="General">{t('general')}</SelectItem>
+  <SelectItem value="Technology">{t('technology')}</SelectItem>
+  <SelectItem value="Politics">{t('politics')}</SelectItem>
+  <SelectItem value="Sports">{t('sports')}</SelectItem>
+  <SelectItem value="Business">{t('business')}</SelectItem>
+  <SelectItem value="International">{t('international')}</SelectItem>
+  <SelectItem value="Tunisia">{t('tunisia')}</SelectItem>
+  <SelectItem value="Algeria">{t('algeria')}</SelectItem>
 </SelectContent>
             </Select>
             <Button onClick={addSource} className="w-full">
