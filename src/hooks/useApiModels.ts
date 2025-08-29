@@ -65,6 +65,18 @@ export const useApiModels = (provider: string, apiKey: string) => {
               'facebook/blenderbot-400M-distill'
             ];
             break;
+
+          case 'openrouter':
+            availableModels = [
+              'anthropic/claude-3.5-sonnet',
+              'openai/gpt-4o',
+              'openai/gpt-4o-mini',
+              'google/gemini-pro-1.5',
+              'meta-llama/llama-3.1-8b-instruct',
+              'mistralai/mistral-7b-instruct',
+              'cohere/command-r-plus'
+            ];
+            break;
         }
 
         setModels(availableModels);

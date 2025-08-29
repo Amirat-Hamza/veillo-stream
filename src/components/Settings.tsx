@@ -359,6 +359,18 @@ const resetSettings = () => {
             'facebook/blenderbot-400M-distill'
           ];
           break;
+
+        case 'openrouter':
+          models = [
+            'anthropic/claude-3.5-sonnet',
+            'openai/gpt-4o',
+            'openai/gpt-4o-mini',
+            'google/gemini-pro-1.5',
+            'meta-llama/llama-3.1-8b-instruct',
+            'mistralai/mistral-7b-instruct',
+            'cohere/command-r-plus'
+          ];
+          break;
       }
 
       return models;
@@ -470,6 +482,11 @@ const resetSettings = () => {
         name: 'Hugging Face',
         url: 'https://huggingface.co/settings/tokens',
         description: 'Open-source models and transformers'
+      },
+      openrouter: {
+        name: 'OpenRouter',
+        url: 'https://openrouter.ai/keys',
+        description: 'Access to multiple AI models through one API'
       }
     };
     return providerInfo[provider as keyof typeof providerInfo];
@@ -769,6 +786,7 @@ const resetSettings = () => {
                     <SelectItem value="deepseek">🚀 DeepSeek</SelectItem>
                     <SelectItem value="claude">🎭 Anthropic Claude</SelectItem>
                     <SelectItem value="huggingface">🤗 Hugging Face</SelectItem>
+                    <SelectItem value="openrouter">🌐 OpenRouter</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
