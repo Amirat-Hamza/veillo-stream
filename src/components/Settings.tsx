@@ -833,7 +833,7 @@ const resetSettings = () => {
                 ) : (
                   <Plus className="w-4 h-4 mr-2" />
                 )}
-                Add API Key
+                {t('addApiKey')}
               </Button>
               <Button
                 variant="outline"
