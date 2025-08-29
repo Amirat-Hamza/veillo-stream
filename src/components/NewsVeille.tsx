@@ -18,6 +18,8 @@ export const NewsVeille = () => {
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
   const [timeRange, setTimeRange] = useState(48);
   const [availableSources, setAvailableSources] = useState<string[]>([]);
+  const [lastNotificationTime, setLastNotificationTime] = useState<number>(0);
+  const [previousArticleCount, setPreviousArticleCount] = useState<number>(0);
 
   useEffect(() => {
     const s = JSON.parse(localStorage.getItem('newsVeilleSettings') || '{}');
@@ -42,31 +44,48 @@ export const NewsVeille = () => {
     }
   }, []);
 
-  // Show notification for new articles
+  // Show notification for NEW articles only (after refresh)
   useEffect(() => {
     if (articles.length > 0 && lastUpdate) {
-      const unreadCount = articles.filter(a => !a.isRead).length;
-      if (unreadCount > 0) {
+      const currentUnreadCount = articles.filter(a => !a.isRead).length;
+      const currentTime = Date.now();
+      
+      // Only trigger notification if:
+      // 1. There are more unread articles than before
+      // 2. It's been at least 30 seconds since last notification (prevent spam)
+      // 3. lastUpdate is recent (within last 10 seconds, meaning fresh refresh)
+      const timeSinceLastUpdate = currentTime - (lastUpdate ? lastUpdate.getTime() : 0);
+      const timeSinceLastNotification = currentTime - lastNotificationTime;
+      const hasNewArticles = currentUnreadCount > previousArticleCount;
+      const isRecentUpdate = timeSinceLastUpdate < 10000; // 10 seconds
+      const canNotify = timeSinceLastNotification > 30000; // 30 seconds
+      
+      if (hasNewArticles && isRecentUpdate && canNotify && currentUnreadCount > 0) {
         const settings = JSON.parse(localStorage.getItem('newsVeilleSettings') || '{}');
         const soundEnabled = settings.soundNotifications !== false;
+        
+        // Check if we're in Do Not Disturb hours
         const now = new Date();
-        const currentTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
+        const currentTimeStr = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
         const dndStart = settings.dndStart || '22:00';
         const dndEnd = settings.dndEnd || '08:00';
+        
         let isInDndPeriod = false;
         if (dndStart <= dndEnd) {
-          isInDndPeriod = currentTime >= dndStart && currentTime <= dndEnd;
+          isInDndPeriod = currentTimeStr >= dndStart && currentTimeStr <= dndEnd;
         } else {
-          isInDndPeriod = currentTime >= dndStart || currentTime <= dndEnd;
+          isInDndPeriod = currentTimeStr >= dndStart || currentTimeStr <= dndEnd;
         }
-
+        
+        // Show browser notification
         if (Notification.permission === 'granted') {
           new Notification('News Veille', {
-            body: `${unreadCount} ${t('newArticlesAvailable')}`,
+            body: `${currentUnreadCount} ${t('newArticlesAvailable')}`,
             icon: '/favicon.ico',
           });
         }
-
+        
+        // Play sound if enabled and not in DND period
         if (soundEnabled && !isInDndPeriod) {
           try {
             const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -86,9 +105,14 @@ export const NewsVeille = () => {
             console.warn('Could not play notification sound:', error);
           }
         }
+        
+        setLastNotificationTime(currentTime);
       }
+      
+      // Update tracking state
+      setPreviousArticleCount(currentUnreadCount);
     }
-  }, [articles, lastUpdate, t]);
+  }, [articles, lastUpdate, t, lastNotificationTime, previousArticleCount]);
 
   // Refresh when sources are updated from Settings (custom event)
   useEffect(() => {
