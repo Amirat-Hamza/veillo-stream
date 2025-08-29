@@ -107,8 +107,8 @@ export const NewsVeille = () => {
     window.URL.revokeObjectURL(url);
 
     toast({
-      title: "Export successful",
-      description: "Your reading history has been exported to CSV.",
+      title: t('exportSuccessful'),
+      description: t('exportSuccessfulDesc'),
     });
   };
 

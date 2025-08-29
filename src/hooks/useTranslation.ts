@@ -265,7 +265,97 @@ const translations: Translations = {
   'readLabel': { en: 'Read', fr: 'Lu', ar: 'مقروء' },
 
   // Notifications
-  'newArticlesAvailable': { en: 'new articles available', fr: 'nouveaux articles disponibles', ar: 'مقالات جديدة متاحة' }
+  'newArticlesAvailable': { en: 'new articles available', fr: 'nouveaux articles disponibles', ar: 'مقالات جديدة متاحة' },
+
+  // Settings & common actions
+  'reset': { en: 'Reset', fr: 'Réinitialiser', ar: 'إعادة ضبط' },
+  'saveSettings': { en: 'Save Settings', fr: 'Enregistrer les paramètres', ar: 'حفظ الإعدادات' },
+  'settingsLoadFailed': { en: 'Settings Load Failed', fr: 'Échec du chargement des paramètres', ar: 'فشل تحميل الإعدادات' },
+  'usingDefaultSettings': { en: 'Using default settings.', fr: 'Utilisation des paramètres par défaut.', ar: 'استخدام الإعدادات الافتراضية.' },
+  'settingsSaved': { en: 'Settings Saved', fr: 'Paramètres enregistrés', ar: 'تم حفظ الإعدادات' },
+  'settingsSavedDesc': { en: 'Your settings have been saved successfully.', fr: 'Vos paramètres ont été enregistrés avec succès.', ar: 'تم حفظ إعداداتك بنجاح.' },
+  'saveFailed': { en: 'Save Failed', fr: 'Échec de l\'enregistrement', ar: 'فشل الحفظ' },
+  'saveFailedDesc': { en: 'Failed to save settings.', fr: "Échec de l'enregistrement des paramètres.", ar: 'فشل حفظ الإعدادات.' },
+  'settingsReset': { en: 'Settings Reset', fr: 'Réinitialisation des paramètres', ar: 'إعادة تعيين الإعدادات' },
+  'settingsResetDesc': { en: 'All settings have been reset to defaults.', fr: 'Tous les paramètres ont été réinitialisés aux valeurs par défaut.', ar: 'تمت إعادة تعيين جميع الإعدادات إلى القيم الافتراضية.' },
+
+  // RSS Sources
+  'sources': { en: 'sources', fr: 'sources', ar: 'مصادر' },
+  'addSource': { en: 'Add Source', fr: 'Ajouter une source', ar: 'إضافة مصدر' },
+  'sourceName': { en: 'Source name', fr: 'Nom de la source', ar: 'اسم المصدر' },
+  'rssUrl': { en: 'RSS URL', fr: 'URL RSS', ar: 'رابط RSS' },
+  'invalidSource': { en: 'Invalid Source', fr: 'Source invalide', ar: 'مصدر غير صالح' },
+  'invalidSourceDesc': { en: 'Please provide both name and URL.', fr: 'Veuillez fournir le nom et l\'URL.', ar: 'يرجى تقديم الاسم والرابط.' },
+  'sourceAdded': { en: 'Source Added', fr: 'Source ajoutée', ar: 'تمت إضافة المصدر' },
+  'addedToSources': { en: 'has been added to your sources.', fr: 'a été ajoutée à vos sources.', ar: 'تمت إضافته إلى مصادرك.' },
+  'sourceRemoved': { en: 'Source Removed', fr: 'Source supprimée', ar: 'تمت إزالة المصدر' },
+  'hasBeenRemoved': { en: 'has been removed.', fr: 'a été supprimée.', ar: 'تمت إزالته.' },
+
+  // General Settings
+  'generalSettings': { en: 'General Settings', fr: 'Paramètres généraux', ar: 'إعدادات عامة' },
+  'defaultRefreshInterval': { en: 'Default Refresh Interval', fr: 'Intervalle d\'actualisation par défaut', ar: 'فترة التحديث الافتراضية' },
+  'fiveMinutes': { en: '5 minutes', fr: '5 minutes', ar: '5 دقائق' },
+  'fifteenMinutes': { en: '15 minutes', fr: '15 minutes', ar: '15 دقيقة' },
+  'thirtyMinutes': { en: '30 minutes', fr: '30 minutes', ar: '30 دقيقة' },
+  'oneHour': { en: '1 hour', fr: '1 heure', ar: 'ساعة واحدة' },
+  'language': { en: 'Language', fr: 'Langue', ar: 'اللغة' },
+  'languageChanged': { en: 'Language Changed', fr: 'Langue modifiée', ar: 'تم تغيير اللغة' },
+  'languageChangedDesc': { en: 'Interface language has been updated.', fr: 'La langue de l\'interface a été mise à jour.', ar: 'تم تحديث لغة الواجهة.' },
+
+  // Notifications
+  'soundNotifications': { en: 'Sound Notifications', fr: 'Notifications sonores', ar: 'إشعارات صوتية' },
+  'playSoundOnNew': { en: 'Play sound when new articles arrive', fr: 'Jouer un son lorsque de nouveaux articles arrivent', ar: 'تشغيل صوت عند وصول مقالات جديدة' },
+  'dndStart': { en: 'Do Not Disturb Start', fr: 'Début du mode Ne pas déranger', ar: 'بداية عدم الإزعاج' },
+  'dndEnd': { en: 'Do Not Disturb End', fr: 'Fin du mode Ne pas déranger', ar: 'نهاية عدم الإزعاج' },
+
+  // AI
+  'aiApiKeysManagement': { en: 'AI API Keys Management', fr: 'Gestion des clés API IA', ar: 'إدارة مفاتيح واجهة برمجة تطبيقات الذكاء الاصطناعي' },
+  'keys': { en: 'keys', fr: 'clés', ar: 'مفاتيح' },
+  'addNewApiKey': { en: 'Add New API Key', fr: 'Ajouter une nouvelle clé API', ar: 'إضافة مفتاح API جديد' },
+  'provider': { en: 'Provider', fr: 'Fournisseur', ar: 'المزوّد' },
+  'name': { en: 'Name', fr: 'Nom', ar: 'الاسم' },
+  'apiKey': { en: 'API Key', fr: 'Clé API', ar: 'مفتاح API' },
+  'myOpenAiKey': { en: 'My OpenAI Key', fr: 'Ma clé OpenAI', ar: 'مفتاح OpenAI الخاص بي' },
+  'addApiKey': { en: 'Add API Key', fr: 'Ajouter une clé API', ar: 'إضافة مفتاح API' },
+  'getApiKey': { en: 'Get API Key', fr: 'Obtenir une clé API', ar: 'الحصول على مفتاح API' },
+  'yourApiKeys': { en: 'Your API Keys', fr: 'Vos clés API', ar: 'مفاتيح API الخاصة بك' },
+  'active': { en: 'Active', fr: 'Actif', ar: 'نشط' },
+  'useThis': { en: 'Use This', fr: 'Utiliser ceci', ar: 'استخدم هذا' },
+  'model': { en: 'Model', fr: 'Modèle', ar: 'النموذج' },
+  'autoDetecting': { en: 'Auto-detecting...', fr: 'Détection automatique...', ar: 'اكتشاف تلقائي...' },
+  'apiKeyLabel': { en: 'API Key', fr: 'Clé API', ar: 'مفتاح API' },
+  'selectActiveApiKey': { en: 'Select Active API Key for Platform', fr: 'Sélectionner la clé API active pour la plateforme', ar: 'اختر مفتاح API النشط للمنصة' },
+  'selectApiKeyPlaceholder': { en: 'Select an API key to use...', fr: 'Sélectionnez une clé API à utiliser...', ar: 'اختر مفتاح API للاستخدام...' },
+  'detectingModels': { en: 'Detecting models...', fr: 'Détection des modèles...', ar: 'جارٍ اكتشاف النماذج...' },
+  'noModelsDetected': { en: 'No models detected', fr: 'Aucun modèle détecté', ar: 'لم يتم اكتشاف أي نماذج' },
+
+  // Data Security & Management
+  'enableDataEncryption': { en: 'Enable Data Encryption', fr: 'Activer le chiffrement des données', ar: 'تمكين تشفير البيانات' },
+  'encryptWithPassphrase': { en: 'Encrypt stored data with a passphrase', fr: 'Chiffrer les données stockées avec une phrase secrète', ar: 'تشفير البيانات المخزنة بعبارة مرور' },
+  'encryptionPassphrase': { en: 'Encryption Passphrase', fr: 'Phrase secrète de chiffrement', ar: 'عبارة مرور التشفير' },
+  'enterSecurePassphrase': { en: 'Enter a secure passphrase', fr: 'Entrez une phrase secrète sécurisée', ar: 'أدخل عبارة مرور آمنة' },
+  'passphraseRequired': { en: 'This passphrase will be required to decrypt your data. Keep it safe!', fr: 'Cette phrase sera nécessaire pour déchiffrer vos données. Gardez-la en sécurité !', ar: 'ستُطلب هذه العبارة لفك تشفير بياناتك. احتفظ بها بأمان!' },
+  'exportData': { en: 'Export Data', fr: 'Exporter les données', ar: 'تصدير البيانات' },
+  'importData': { en: 'Import Data', fr: 'Importer des données', ar: 'استيراد البيانات' },
+  'exportIncludesAll': { en: '• Export includes all articles, settings, and reading history', fr: '• L\'export inclut tous les articles, paramètres et l\'historique de lecture', ar: '• يتضمن التصدير جميع المقالات والإعدادات وسجل القراءة' },
+  'useImportExportToSync': { en: '• Use import/export to sync data between devices', fr: '• Utilisez l\'import/export pour synchroniser les données entre appareils', ar: '• استخدم الاستيراد/التصدير لمزامنة البيانات بين الأجهزة' },
+  'dataExportedJson': { en: '• Data is exported in JSON format for easy backup', fr: '• Les données sont exportées au format JSON pour une sauvegarde facile', ar: '• يتم تصدير البيانات بتنسيق JSON لسهولة النسخ الاحتياطي' },
+  'exportFailed': { en: 'Export Failed', fr: 'Échec de l\'export', ar: 'فشل التصدير' },
+  'exportFailedDesc': { en: 'Failed to export data.', fr: 'Échec de l\'export des données.', ar: 'فشل تصدير البيانات.' },
+  'importSuccessful': { en: 'Import Successful', fr: 'Import réussi', ar: 'تم الاستيراد بنجاح' },
+  'importSuccessfulDesc': { en: 'Your data has been imported successfully.', fr: 'Vos données ont été importées avec succès.', ar: 'تم استيراد بياناتك بنجاح.' },
+  'importFailed': { en: 'Import Failed', fr: 'Échec de l\'import', ar: 'فشل الاستيراد' },
+  'importFailedDesc': { en: 'Invalid file format or corrupted data.', fr: 'Format de fichier invalide ou données corrompues.', ar: 'تنسيق ملف غير صالح أو بيانات تالفة.' },
+
+  // API key toasts
+  'invalidInput': { en: 'Invalid Input', fr: 'Entrée invalide', ar: 'إدخال غير صالح' },
+  'provideApiKeyAndName': { en: 'Please provide both API key and name.', fr: 'Veuillez fournir la clé API et le nom.', ar: 'يرجى تقديم مفتاح API والاسم.' },
+  'apiKeyAdded': { en: 'API Key Added', fr: 'Clé API ajoutée', ar: 'تمت إضافة مفتاح API' },
+  'addedSuccessfully': { en: 'has been added successfully.', fr: 'a été ajouté avec succès.', ar: 'تمت إضافته بنجاح.' },
+  'apiKeyDeleted': { en: 'API Key Deleted', fr: 'Clé API supprimée', ar: 'تم حذف مفتاح API' },
+  'hasBeenDeleted': { en: 'has been deleted.', fr: 'a été supprimé.', ar: 'تم حذفه.' },
+  'activeApiKeyChanged': { en: 'Active API Key Changed', fr: 'Clé API active modifiée', ar: 'تم تغيير مفتاح API النشط' },
+  'nowUsing': { en: 'Now using', fr: 'Utilisation de', ar: 'يتم استخدام' }
 };
 
 export const useTranslation = () => {

@@ -115,14 +115,14 @@ const saveSettings = () => {
     window.dispatchEvent(new CustomEvent('newsVeille:sourcesUpdated'));
     window.dispatchEvent(new CustomEvent('newsVeille:settingsUpdated'));
     toast({
-      title: "Settings Saved",
-      description: "Your settings have been saved successfully.",
+      title: t('settingsSaved'),
+      description: t('settingsSavedDesc'),
     });
   } catch (error) {
     console.error('Failed to save settings:', error);
     toast({
-      title: "Save Failed",
-      description: "Failed to save settings.",
+      title: t('saveFailed'),
+      description: t('saveFailedDesc'),
       variant: "destructive"
     });
   }
@@ -135,16 +135,16 @@ const resetSettings = () => {
     window.dispatchEvent(new CustomEvent('newsVeille:sourcesUpdated'));
   } catch {}
   toast({
-    title: "Settings Reset",
-    description: "All settings have been reset to defaults.",
+    title: t('settingsReset'),
+    description: t('settingsResetDesc'),
   });
 };
 
   const addSource = () => {
     if (!newSource.name.trim() || !newSource.url.trim()) {
       toast({
-        title: "Invalid Source",
-        description: "Please provide both name and URL.",
+        title: t('invalidSource'),
+        description: t('invalidSourceDesc'),
         variant: "destructive"
       });
       return;
@@ -173,8 +173,8 @@ const resetSettings = () => {
     setNewSource({ name: '', url: '', category: 'General' });
 
     toast({
-      title: "Source Added",
-      description: `${newSource.name} has been added to your sources.`,
+      title: t('sourceAdded'),
+      description: `${newSource.name} ${t('addedToSources')}`,
     });
   };
 
@@ -186,8 +186,8 @@ const resetSettings = () => {
     }));
 
     toast({
-      title: "Source Removed",
-      description: `${sourceName} has been removed.`,
+      title: t('sourceRemoved'),
+      description: `${sourceName} ${t('hasBeenRemoved')}`,
     });
   };
 
@@ -251,14 +251,14 @@ const resetSettings = () => {
       URL.revokeObjectURL(url);
 
       toast({
-        title: "Export Successful",
-        description: "Your data has been exported successfully.",
+        title: t('exportSuccessful'),
+        description: t('exportSuccessfulDesc'),
       });
     } catch (error) {
       console.error('Export failed:', error);
       toast({
-        title: "Export Failed",
-        description: "Failed to export data.",
+        title: t('exportFailed'),
+        description: t('exportFailedDesc'),
         variant: "destructive"
       });
     }
@@ -286,14 +286,14 @@ const resetSettings = () => {
         }
 
         toast({
-          title: "Import Successful",
-          description: "Your data has been imported successfully.",
+          title: t('importSuccessful'),
+          description: t('importSuccessfulDesc'),
         });
       } catch (error) {
         console.error('Import failed:', error);
         toast({
-          title: "Import Failed",
-          description: "Invalid file format or corrupted data.",
+          title: t('importFailed'),
+          description: t('importFailedDesc'),
           variant: "destructive"
         });
       }
@@ -386,8 +386,8 @@ const resetSettings = () => {
   const addApiKey = async () => {
     if (!newApiKey.apiKey.trim() || !newApiKey.name.trim()) {
       toast({
-        title: "Invalid Input",
-        description: "Please provide both API key and name.",
+        title: t('invalidInput'),
+        description: t('provideApiKeyAndName'),
         variant: "destructive"
       });
       return;
@@ -415,8 +415,8 @@ const resetSettings = () => {
     setModelLoading(false);
 
     toast({
-      title: "API Key Added",
-      description: `${newApiKey.name} has been added successfully.`,
+      title: t('apiKeyAdded'),
+      description: `${newApiKey.name} ${t('addedSuccessfully')}`,
     });
   };
 
@@ -431,10 +431,10 @@ const resetSettings = () => {
       };
     });
 
-    toast({
-      title: "API Key Deleted",
-      description: `${config?.name} has been deleted.`,
-    });
+  toast({
+    title: t('apiKeyDeleted'),
+    description: `${config?.name} ${t('hasBeenDeleted')}`,
+  });
   };
 
   const setActiveApiKey = (id: string) => {
@@ -445,8 +445,8 @@ const resetSettings = () => {
 
     const config = settings.apiKeyConfigs.find(c => c.id === id);
     toast({
-      title: "Active API Key Changed",
-      description: `Now using ${config?.name}`,
+      title: t('activeApiKeyChanged'),
+      description: `${t('nowUsing')} ${config?.name}`,
     });
   };
 
@@ -503,7 +503,7 @@ const resetSettings = () => {
       return (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-          Detecting models...
+          {t('detectingModels')}
         </div>
       );
     }
@@ -511,7 +511,7 @@ const resetSettings = () => {
     if (models.length === 0) {
       return (
         <div className="text-sm text-muted-foreground">
-          No models detected
+          {t('noModelsDetected')}
         </div>
       );
     }
@@ -592,7 +592,7 @@ const resetSettings = () => {
             </Select>
             <Button onClick={addSource} className="w-full">
               <Plus className="w-4 h-4 mr-2" />
-              Add Source
+              {t('addSource')}
             </Button>
           </div>
 
@@ -622,12 +622,12 @@ const resetSettings = () => {
                   <Input
                     value={source.name}
                     onChange={(e) => updateSource(index, 'name', e.target.value)}
-                    placeholder="Source name"
+                    placeholder={t('sourceName')}
                   />
                   <Input
                     value={source.url}
                     onChange={(e) => updateSource(index, 'url', e.target.value)}
-                    placeholder="RSS URL"
+                    placeholder={t('rssUrl')}
                     className="text-sm"
                   />
                   <div className="flex gap-2">
@@ -639,14 +639,14 @@ const resetSettings = () => {
                         <SelectValue />
                       </SelectTrigger>
 <SelectContent>
-  <SelectItem value="General">General</SelectItem>
-  <SelectItem value="Technology">Technology</SelectItem>
-  <SelectItem value="Politics">Politics</SelectItem>
-  <SelectItem value="Sports">Sports</SelectItem>
-  <SelectItem value="Business">Business</SelectItem>
-  <SelectItem value="International">International</SelectItem>
-  <SelectItem value="Tunisia">Tunisia</SelectItem>
-  <SelectItem value="Algeria">Algeria</SelectItem>
+  <SelectItem value="General">{t('general')}</SelectItem>
+  <SelectItem value="Technology">{t('technology')}</SelectItem>
+  <SelectItem value="Politics">{t('politics')}</SelectItem>
+  <SelectItem value="Sports">{t('sports')}</SelectItem>
+  <SelectItem value="Business">{t('business')}</SelectItem>
+  <SelectItem value="International">{t('international')}</SelectItem>
+  <SelectItem value="Tunisia">{t('tunisia')}</SelectItem>
+  <SelectItem value="Algeria">{t('algeria')}</SelectItem>
 </SelectContent>
                     </Select>
                     <Select
@@ -682,12 +682,12 @@ const resetSettings = () => {
       {/* General Settings */}
       <Card>
         <CardHeader>
-          <CardTitle>⚙️ General Settings</CardTitle>
+          <CardTitle>⚙️ {t('generalSettings')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="space-y-2">
-              <Label>Default Refresh Interval</Label>
+              <Label>{t('defaultRefreshInterval')}</Label>
               <Select
                 value={settings.refreshInterval.toString()}
                 onValueChange={(value) => setSettings(prev => ({ ...prev, refreshInterval: parseInt(value) }))}
@@ -696,16 +696,16 @@ const resetSettings = () => {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="5">5 minutes</SelectItem>
-                  <SelectItem value="15">15 minutes</SelectItem>
-                  <SelectItem value="30">30 minutes</SelectItem>
-                  <SelectItem value="60">1 hour</SelectItem>
+                  <SelectItem value="5">{t('fiveMinutes')}</SelectItem>
+                  <SelectItem value="15">{t('fifteenMinutes')}</SelectItem>
+                  <SelectItem value="30">{t('thirtyMinutes')}</SelectItem>
+                  <SelectItem value="60">{t('oneHour')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
 
             <div className="space-y-2">
-              <Label>Language</Label>
+              <Label>{t('language')}</Label>
               <Select
                 value={settings.language}
                 onValueChange={(value) => {
@@ -720,8 +720,8 @@ const resetSettings = () => {
                   document.documentElement.lang = value;
                   
                   toast({
-                    title: "Language Changed",
-                    description: "Interface language has been updated.",
+                    title: t('languageChanged'),
+                    description: t('languageChangedDesc'),
                   });
                 }}
               >
@@ -741,12 +741,12 @@ const resetSettings = () => {
 
           {/* Notifications */}
           <div className="space-y-4">
-            <h3 className="font-semibold">🔔 Notifications</h3>
+            <h3 className="font-semibold">🔔 {t('notifications')}</h3>
             
             <div className="flex items-center justify-between">
               <div>
-                <Label>Sound Notifications</Label>
-                <p className="text-sm text-muted-foreground">Play sound when new articles arrive</p>
+                <Label>{t('soundNotifications')}</Label>
+                <p className="text-sm text-muted-foreground">{t('playSoundOnNew')}</p>
               </div>
               <Switch
                 checked={settings.soundNotifications}
@@ -756,7 +756,7 @@ const resetSettings = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Do Not Disturb Start</Label>
+                <Label>{t('dndStart')}</Label>
                 <Input
                   type="time"
                   value={settings.dndStart}
@@ -764,7 +764,7 @@ const resetSettings = () => {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Do Not Disturb End</Label>
+                <Label>{t('dndEnd')}</Label>
                 <Input
                   type="time"
                   value={settings.dndEnd}
@@ -780,17 +780,17 @@ const resetSettings = () => {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
-            🤖 AI API Keys Management
-            <Badge variant="secondary">{settings.apiKeyConfigs.length} keys</Badge>
+            🤖 {t('aiApiKeysManagement')}
+            <Badge variant="secondary">{settings.apiKeyConfigs.length} {t('keys')}</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Add New API Key */}
           <div className="p-4 border rounded-lg bg-muted/50 space-y-4">
-            <h3 className="font-medium">Add New API Key</h3>
+            <h3 className="font-medium">{t('addNewApiKey')}</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label>Provider</Label>
+                <Label>{t('provider')}</Label>
                 <Select
                   value={newApiKey.provider}
                   onValueChange={(value) => setNewApiKey(prev => ({ ...prev, provider: value }))}
@@ -809,16 +809,16 @@ const resetSettings = () => {
                 </Select>
               </div>
               <div className="space-y-2">
-                <Label>Name</Label>
+                <Label>{t('name')}</Label>
                 <Input
-                  placeholder="My OpenAI Key"
+                  placeholder={t('myOpenAiKey')}
                   value={newApiKey.name}
                   onChange={(e) => setNewApiKey(prev => ({ ...prev, name: e.target.value }))}
                 />
               </div>
             </div>
             <div className="space-y-2">
-              <Label>API Key</Label>
+              <Label>{t('apiKey')}</Label>
               <Input
                 type="password"
                 placeholder="sk-..."
@@ -842,8 +842,8 @@ const resetSettings = () => {
                   if (info) window.open(info.url, '_blank');
                 }}
               >
-                <ExternalLink className="w-4 h-4 mr-2" />
-                Get API Key
+              <ExternalLink className="w-4 h-4 mr-2" />
+              {t('getApiKey')}
               </Button>
             </div>
             {/* Provider Info */}
@@ -861,7 +861,7 @@ const resetSettings = () => {
           {/* API Keys List */}
           {settings.apiKeyConfigs.length > 0 && (
             <div className="space-y-3">
-              <h3 className="font-medium">Your API Keys</h3>
+              <h3 className="font-medium">{t('yourApiKeys')}</h3>
               {settings.apiKeyConfigs.map((config) => (
                 <div
                   key={config.id}
@@ -877,7 +877,7 @@ const resetSettings = () => {
                           {getProviderInfo(config.provider)?.name || config.provider}
                         </Badge>
                         {config.id === settings.activeApiKeyId && (
-                          <Badge variant="default">Active</Badge>
+                          <Badge variant="default">{t('active')}</Badge>
                         )}
                       </div>
                     </div>
@@ -892,7 +892,7 @@ const resetSettings = () => {
                         onClick={() => setActiveApiKey(config.id)}
                         disabled={config.id === settings.activeApiKeyId}
                       >
-                        Use This
+                        {t('useThis')}
                       </Button>
                       <Button
                         variant="destructive"
@@ -904,8 +904,8 @@ const resetSettings = () => {
                     </div>
                   </div>
                   <div className="mt-2 text-sm text-muted-foreground">
-                    <p>Model: {config.selectedModel || 'Auto-detecting...'}</p>
-                    <p>API Key: •••••••••{config.apiKey.slice(-8)}</p>
+                    <p>{t('model')}: {config.selectedModel || t('autoDetecting')}</p>
+                    <p>{t('apiKeyLabel')}: •••••••••{config.apiKey.slice(-8)}</p>
                   </div>
                 </div>
               ))}
@@ -915,13 +915,13 @@ const resetSettings = () => {
           {/* Active Key Selection */}
           {settings.apiKeyConfigs.length > 0 && (
             <div className="p-4 border rounded-lg bg-muted/20">
-              <h3 className="font-medium mb-3">Select Active API Key for Platform</h3>
+              <h3 className="font-medium mb-3">{t('selectActiveApiKey')}</h3>
               <Select
                 value={settings.activeApiKeyId}
                 onValueChange={setActiveApiKey}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select an API key to use..." />
+                  <SelectValue placeholder={t('selectApiKeyPlaceholder')} />
                 </SelectTrigger>
                 <SelectContent>
                   {settings.apiKeyConfigs.map((config) => (
@@ -944,13 +944,13 @@ const resetSettings = () => {
       {/* Data Security */}
       <Card>
         <CardHeader>
-          <CardTitle>🔒 Data Security</CardTitle>
+          <CardTitle>🔒 {t('dataSecurity')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <Label>Enable Data Encryption</Label>
-              <p className="text-sm text-muted-foreground">Encrypt stored data with a passphrase</p>
+              <Label>{t('enableDataEncryption')}</Label>
+              <p className="text-sm text-muted-foreground">{t('encryptWithPassphrase')}</p>
             </div>
             <Switch
               checked={settings.encryptionEnabled}
@@ -960,15 +960,15 @@ const resetSettings = () => {
 
           {settings.encryptionEnabled && (
             <div className="space-y-2">
-              <Label>Encryption Passphrase</Label>
+              <Label>{t('encryptionPassphrase')}</Label>
               <Input
                 type="password"
-                placeholder="Enter a secure passphrase"
+                placeholder={t('enterSecurePassphrase')}
                 value={settings.encryptionPassphrase}
                 onChange={(e) => setSettings(prev => ({ ...prev, encryptionPassphrase: e.target.value }))}
               />
               <p className="text-xs text-muted-foreground">
-                This passphrase will be required to decrypt your data. Keep it safe!
+                {t('passphraseRequired')}
               </p>
             </div>
           )}
@@ -978,13 +978,13 @@ const resetSettings = () => {
       {/* Data Management */}
       <Card>
         <CardHeader>
-          <CardTitle>💾 Data Management</CardTitle>
+          <CardTitle>💾 {t('dataManagement')}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex gap-4">
             <Button onClick={exportData} variant="outline" className="flex-1">
               <Download className="w-4 h-4 mr-2" />
-              Export Data
+              {t('exportData')}
             </Button>
             <div className="flex-1">
               <Input
@@ -1000,15 +1000,15 @@ const resetSettings = () => {
                 className="w-full"
               >
                 <Upload className="w-4 h-4 mr-2" />
-                Import Data
+                {t('importData')}
               </Button>
             </div>
           </div>
           
           <div className="text-sm text-muted-foreground space-y-1">
-            <p>• Export includes all articles, settings, and reading history</p>
-            <p>• Use import/export to sync data between devices</p>
-            <p>• Data is exported in JSON format for easy backup</p>
+            <p>{t('exportIncludesAll')}</p>
+            <p>{t('useImportExportToSync')}</p>
+            <p>{t('dataExportedJson')}</p>
           </div>
         </CardContent>
       </Card>
