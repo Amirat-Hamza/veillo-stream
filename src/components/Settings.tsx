@@ -750,7 +750,33 @@ const resetSettings = () => {
               </div>
               <Switch
                 checked={settings.soundNotifications}
-                onCheckedChange={(checked) => setSettings(prev => ({ ...prev, soundNotifications: checked }))}
+                onCheckedChange={(checked) => {
+                  const updated = { ...settings, soundNotifications: checked };
+                  setSettings(updated);
+                  try {
+                    localStorage.setItem('newsVeilleSettings', JSON.stringify(updated));
+                    window.dispatchEvent(new CustomEvent('newsVeille:settingsUpdated'));
+                  } catch {}
+                  if (checked) {
+                    try {
+                      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+                      const oscillator = audioContext.createOscillator();
+                      const gainNode = audioContext.createGain();
+                      oscillator.connect(gainNode);
+                      gainNode.connect(audioContext.destination);
+                      oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+                      oscillator.frequency.setValueAtTime(600, audioContext.currentTime + 0.2);
+                      oscillator.frequency.setValueAtTime(800, audioContext.currentTime + 0.4);
+                      gainNode.gain.setValueAtTime(0, audioContext.currentTime);
+                      gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.1);
+                      gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.6);
+                      oscillator.start(audioContext.currentTime);
+                      oscillator.stop(audioContext.currentTime + 0.6);
+                    } catch (e) {
+                      console.warn('Sound test failed:', e);
+                    }
+                  }
+                }}
               />
             </div>
 
@@ -760,7 +786,14 @@ const resetSettings = () => {
                 <Input
                   type="time"
                   value={settings.dndStart}
-                  onChange={(e) => setSettings(prev => ({ ...prev, dndStart: e.target.value }))}
+                  onChange={(e) => {
+                    const updated = { ...settings, dndStart: e.target.value };
+                    setSettings(updated);
+                    try {
+                      localStorage.setItem('newsVeilleSettings', JSON.stringify(updated));
+                      window.dispatchEvent(new CustomEvent('newsVeille:settingsUpdated'));
+                    } catch {}
+                  }}
                 />
               </div>
               <div className="space-y-2">
@@ -768,7 +801,14 @@ const resetSettings = () => {
                 <Input
                   type="time"
                   value={settings.dndEnd}
-                  onChange={(e) => setSettings(prev => ({ ...prev, dndEnd: e.target.value }))}
+                  onChange={(e) => {
+                    const updated = { ...settings, dndEnd: e.target.value };
+                    setSettings(updated);
+                    try {
+                      localStorage.setItem('newsVeilleSettings', JSON.stringify(updated));
+                      window.dispatchEvent(new CustomEvent('newsVeille:settingsUpdated'));
+                    } catch {}
+                  }}
                 />
               </div>
             </div>

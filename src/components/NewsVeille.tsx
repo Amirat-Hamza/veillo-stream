@@ -46,52 +46,40 @@ export const NewsVeille = () => {
   useEffect(() => {
     if (articles.length > 0 && lastUpdate) {
       const unreadCount = articles.filter(a => !a.isRead).length;
-      if (unreadCount > 0 && Notification.permission === 'granted') {
-        // Get settings to check if sound notifications are enabled
+      if (unreadCount > 0) {
         const settings = JSON.parse(localStorage.getItem('newsVeilleSettings') || '{}');
-        const soundEnabled = settings.soundNotifications !== false; // Default to true
-        
-        // Check if we're in Do Not Disturb hours
+        const soundEnabled = settings.soundNotifications !== false;
         const now = new Date();
         const currentTime = now.getHours().toString().padStart(2, '0') + ':' + now.getMinutes().toString().padStart(2, '0');
         const dndStart = settings.dndStart || '22:00';
         const dndEnd = settings.dndEnd || '08:00';
-        
         let isInDndPeriod = false;
         if (dndStart <= dndEnd) {
-          // Same day DND period (e.g., 22:00 to 23:59)
           isInDndPeriod = currentTime >= dndStart && currentTime <= dndEnd;
         } else {
-          // Overnight DND period (e.g., 22:00 to 08:00)
           isInDndPeriod = currentTime >= dndStart || currentTime <= dndEnd;
         }
-        
-        // Show browser notification
-        new Notification('News Veille', {
-          body: `${unreadCount} ${t('newArticlesAvailable')}`,
-          icon: '/favicon.ico',
-        });
-        
-        // Play sound if enabled and not in DND period
+
+        if (Notification.permission === 'granted') {
+          new Notification('News Veille', {
+            body: `${unreadCount} ${t('newArticlesAvailable')}`,
+            icon: '/favicon.ico',
+          });
+        }
+
         if (soundEnabled && !isInDndPeriod) {
           try {
-            // Create a simple notification sound using Web Audio API
             const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
             const oscillator = audioContext.createOscillator();
             const gainNode = audioContext.createGain();
-            
             oscillator.connect(gainNode);
             gainNode.connect(audioContext.destination);
-            
-            // Create a pleasant notification sound (two tones)
             oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
             oscillator.frequency.setValueAtTime(600, audioContext.currentTime + 0.2);
             oscillator.frequency.setValueAtTime(800, audioContext.currentTime + 0.4);
-            
             gainNode.gain.setValueAtTime(0, audioContext.currentTime);
             gainNode.gain.linearRampToValueAtTime(0.3, audioContext.currentTime + 0.1);
             gainNode.gain.linearRampToValueAtTime(0, audioContext.currentTime + 0.6);
-            
             oscillator.start(audioContext.currentTime);
             oscillator.stop(audioContext.currentTime + 0.6);
           } catch (error) {
