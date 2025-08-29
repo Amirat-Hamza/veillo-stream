@@ -7,6 +7,7 @@ import { Settings } from './Settings';
 import { useNewsData } from '@/hooks/useNewsData';
 import { useToast } from '@/hooks/use-toast';
 import { ThemeProvider } from 'next-themes';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export const NewsVeille = () => {
   const [showDashboard, setShowDashboard] = useState(false);
@@ -32,6 +33,7 @@ export const NewsVeille = () => {
   
   const { articles, loading, lastUpdate, markAsRead, refreshNews, getReadingStats } = useNewsData();
   const { toast } = useToast();
+  const { t } = useTranslation();
 
   // Request notification permission
   useEffect(() => {
@@ -46,7 +48,7 @@ export const NewsVeille = () => {
       const unreadCount = articles.filter(a => !a.isRead).length;
       if (unreadCount > 0 && Notification.permission === 'granted') {
         new Notification('News Veille', {
-          body: `${unreadCount} new articles available`,
+          body: `${unreadCount} ${t('newArticlesAvailable')}`,
           icon: '/favicon.ico',
         });
       }
@@ -82,8 +84,8 @@ export const NewsVeille = () => {
   const handleArticleRead = (link: string) => {
     markAsRead(link);
     toast({
-      title: "Article marked as read",
-      description: "Article has been added to your reading history.",
+      title: t('articleMarkedRead'),
+      description: t('articleMarkedReadDesc'),
     });
   };
 
@@ -193,15 +195,15 @@ export const NewsVeille = () => {
                 <div className="flex items-center justify-center py-12">
                   <div className="text-center space-y-4">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-                    <p className="text-muted-foreground">Loading news articles...</p>
+                    <p className="text-muted-foreground">{t('loadingArticles')}</p>
                   </div>
                 </div>
               ) : filteredArticles.length === 0 ? (
                 <div className="text-center py-12">
                   <p className="text-muted-foreground text-lg">
                     {searchTerm || selectedSource !== 'all' || selectedCategory !== 'all' || showUnreadOnly
-                      ? 'No articles match your filters.'
-                      : 'No articles available yet.'
+                      ? t('noArticlesMatchFilters')
+                      : t('noArticlesAvailableYet')
                     }
                   </p>
                 </div>

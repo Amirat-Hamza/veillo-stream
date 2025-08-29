@@ -15,6 +15,7 @@ import {
 } from 'chart.js';
 import { format, subDays, startOfDay } from 'date-fns';
 import { TrendingUp, BookOpen, Calendar, Award } from 'lucide-react';
+import { useTranslation } from '@/hooks/useTranslation';
 
 ChartJS.register(
   CategoryScale,
@@ -31,6 +32,7 @@ interface DashboardProps {
 }
 
 export const Dashboard = ({ stats }: DashboardProps) => {
+  const { t } = useTranslation();
   // Prepare chart data for the last 7 days
   const last7Days = Array.from({ length: 7 }, (_, i) => {
     const date = startOfDay(subDays(new Date(), 6 - i));
@@ -45,7 +47,7 @@ export const Dashboard = ({ stats }: DashboardProps) => {
     labels: last7Days.map(d => d.date),
     datasets: [
       {
-        label: 'Articles Read',
+        label: t('articlesRead'),
         data: last7Days.map(d => d.value),
         borderColor: 'hsl(var(--primary))',
         backgroundColor: 'hsl(var(--primary) / 0.1)',
@@ -98,34 +100,34 @@ export const Dashboard = ({ stats }: DashboardProps) => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Today</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('today')}</CardTitle>
             <BookOpen className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-primary">{stats.today}</div>
-            <p className="text-xs text-muted-foreground">articles read</p>
+            <p className="text-xs text-muted-foreground">{t('articlesRead')}</p>
           </CardContent>
         </Card>
 
         <Card className="bg-gradient-to-br from-secondary/50 to-secondary/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">This Month</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('thisMonth')}</CardTitle>
             <Calendar className="h-4 w-4 text-secondary-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.thisMonth}</div>
-            <p className="text-xs text-muted-foreground">articles read</p>
+            <p className="text-xs text-muted-foreground">{t('articlesRead')}</p>
           </CardContent>
         </Card>
 
         <Card className="bg-gradient-to-br from-accent/50 to-accent/20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">This Year</CardTitle>
+            <CardTitle className="text-sm font-medium">{t('thisYear')}</CardTitle>
             <Award className="h-4 w-4 text-accent-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.thisYear}</div>
-            <p className="text-xs text-muted-foreground">articles read</p>
+            <p className="text-xs text-muted-foreground">{t('articlesRead')}</p>
           </CardContent>
         </Card>
       </div>
@@ -135,7 +137,7 @@ export const Dashboard = ({ stats }: DashboardProps) => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <TrendingUp className="h-5 w-5" />
-              Reading Activity (Last 7 Days)
+              {t('readingActivityLast7Days')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -147,7 +149,7 @@ export const Dashboard = ({ stats }: DashboardProps) => {
 
         <Card>
           <CardHeader>
-            <CardTitle>Top News Sources</CardTitle>
+            <CardTitle>{t('topNewsSources')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {topSources.length > 0 ? (
@@ -161,7 +163,7 @@ export const Dashboard = ({ stats }: DashboardProps) => {
               ))
             ) : (
               <p className="text-muted-foreground text-center py-4">
-                No reading data yet. Start reading articles to see statistics!
+                {t('noReadingDataYet')}
               </p>
             )}
           </CardContent>

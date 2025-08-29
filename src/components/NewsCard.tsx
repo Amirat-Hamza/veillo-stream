@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { NewsArticle } from '@/types/news';
 import { format } from 'date-fns';
 import { ExternalLink, Clock } from 'lucide-react';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface NewsCardProps {
   article: NewsArticle;
@@ -10,6 +11,7 @@ interface NewsCardProps {
 }
 
 export const NewsCard = ({ article, onRead }: NewsCardProps) => {
+  const { t } = useTranslation();
   const handleClick = () => {
     onRead(article.link);
     window.open(article.link, '_blank');
@@ -81,7 +83,7 @@ export const NewsCard = ({ article, onRead }: NewsCardProps) => {
         {article.isRead && (
           <div className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
             <div className="w-2 h-2 rounded-full bg-muted-foreground/50"></div>
-            <span className="font-medium">Read</span>
+            <span className="font-medium">{t('readLabel')}</span>
           </div>
         )}
       </CardContent>

@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Search, Filter, X } from 'lucide-react';
+import { useTranslation } from '@/hooks/useTranslation';
 
 interface SearchAndFiltersProps {
   searchTerm: string;
@@ -35,6 +36,7 @@ export const SearchAndFilters = ({
   categories,
   filteredArticles,
 }: SearchAndFiltersProps) => {
+  const { t } = useTranslation();
   const hasActiveFilters = selectedSource !== 'all' || selectedCategory !== 'all' || showUnreadOnly || timeRange > 0;
   
   // Calculate article counts
@@ -55,7 +57,7 @@ export const SearchAndFilters = ({
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Search articles..."
+          placeholder={`${t('search')}...`}
           value={searchTerm}
           onChange={(e) => onSearchChange(e.target.value)}
           className="pl-10"
@@ -66,15 +68,15 @@ export const SearchAndFilters = ({
         <div className="flex flex-wrap gap-3 items-center">
           <div className="flex items-center gap-2">
             <Filter className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Filters:</span>
+            <span className="text-sm font-medium">{t('filters')}:</span>
           </div>
 
         <Select value={selectedSource} onValueChange={onSourceChange}>
           <SelectTrigger className="w-40">
-            <SelectValue placeholder="All sources" />
+            <SelectValue placeholder={t('allSources')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Sources</SelectItem>
+            <SelectItem value="all">{t('allSources')}</SelectItem>
             {sources.map(source => (
               <SelectItem key={source} value={source}>{source}</SelectItem>
             ))}
@@ -83,10 +85,10 @@ export const SearchAndFilters = ({
 
         <Select value={selectedCategory} onValueChange={onCategoryChange}>
           <SelectTrigger className="w-40">
-            <SelectValue placeholder="All categories" />
+            <SelectValue placeholder={t('allCategories')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Categories</SelectItem>
+            <SelectItem value="all">{t('allCategories')}</SelectItem>
             {categories.map(category => (
               <SelectItem key={category} value={category}>{category}</SelectItem>
             ))}
@@ -95,10 +97,10 @@ export const SearchAndFilters = ({
 
         <Select value={timeRange.toString()} onValueChange={(value) => onTimeRangeChange(parseFloat(value))}>
           <SelectTrigger className="w-28">
-            <SelectValue placeholder="Time range" />
+            <SelectValue placeholder={t('timeRange')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="0">All</SelectItem>
+            <SelectItem value="0">{t('all')}</SelectItem>
             <SelectItem value="0.5">30m</SelectItem>
             <SelectItem value="1">1h</SelectItem>
             <SelectItem value="2">2h</SelectItem>
@@ -116,7 +118,7 @@ export const SearchAndFilters = ({
           size="sm"
           onClick={() => onUnreadOnlyChange(!showUnreadOnly)}
         >
-          Unread Only
+          {t('unreadOnly')}
         </Button>
 
         {hasActiveFilters && (
@@ -127,7 +129,7 @@ export const SearchAndFilters = ({
             className="text-muted-foreground hover:text-foreground"
           >
             <X className="h-4 w-4 mr-1" />
-            Clear Filters
+            {t('clearFilters')}
           </Button>
         )}
         </div>
@@ -135,15 +137,15 @@ export const SearchAndFilters = ({
         {/* Article count display */}
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <span className="font-medium">
-            {totalCount} article{totalCount !== 1 ? 's' : ''}
+            {totalCount} {t('articles')}
           </span>
           <span>•</span>
           <span className="text-green-600 dark:text-green-400">
-            {readCount} read
+            {readCount} {t('read')}
           </span>
           <span>•</span>
           <span className="text-blue-600 dark:text-blue-400">
-            {unreadCount} unread
+            {unreadCount} {t('unread')}
           </span>
         </div>
       </div>
@@ -152,7 +154,7 @@ export const SearchAndFilters = ({
         <div className="flex flex-wrap gap-2">
           {selectedSource !== 'all' && (
             <Badge variant="secondary" className="gap-1">
-              Source: {selectedSource}
+              {t('source')}: {selectedSource}
               <X 
                 className="h-3 w-3 cursor-pointer" 
                 onClick={() => onSourceChange('all')}
@@ -161,7 +163,7 @@ export const SearchAndFilters = ({
           )}
           {selectedCategory !== 'all' && (
             <Badge variant="secondary" className="gap-1">
-              Category: {selectedCategory}
+              {t('category')}: {selectedCategory}
               <X 
                 className="h-3 w-3 cursor-pointer" 
                 onClick={() => onCategoryChange('all')}
@@ -170,7 +172,7 @@ export const SearchAndFilters = ({
           )}
           {showUnreadOnly && (
             <Badge variant="secondary" className="gap-1">
-              Unread Only
+              {t('unreadOnly')}
               <X 
                 className="h-3 w-3 cursor-pointer" 
                 onClick={() => onUnreadOnlyChange(false)}
@@ -179,7 +181,7 @@ export const SearchAndFilters = ({
           )}
           {timeRange > 0 && (
             <Badge variant="secondary" className="gap-1">
-              Time: {timeRange === 0.5 ? '30m' : `${timeRange}h`}
+              {t('time')}: {timeRange === 0.5 ? '30m' : `${timeRange}h`}
               <X
                 className="h-3 w-3 cursor-pointer"
                 onClick={() => onTimeRangeChange(0)}

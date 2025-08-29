@@ -223,7 +223,49 @@ const translations: Translations = {
     en: 'Relevance',
     fr: 'Pertinence',
     ar: 'الصلة'
-  }
+  },
+
+  // Search & Filters UI
+  'filters': { en: 'Filters', fr: 'Filtres', ar: 'مرشحات' },
+  'allSources': { en: 'All Sources', fr: 'Toutes les sources', ar: 'كل المصادر' },
+  'allCategories': { en: 'All Categories', fr: 'Toutes les catégories', ar: 'كل الفئات' },
+  'timeRange': { en: 'Time range', fr: "Plage de temps", ar: 'النطاق الزمني' },
+  'unreadOnly': { en: 'Unread Only', fr: 'Non lus uniquement', ar: 'غير المقروء فقط' },
+  'clearFilters': { en: 'Clear Filters', fr: 'Effacer les filtres', ar: 'مسح المرشحات' },
+  'articles': { en: 'articles', fr: 'articles', ar: 'مقالات' },
+  'read': { en: 'read', fr: 'lus', ar: 'مقروء' },
+  'unread': { en: 'unread', fr: 'non lus', ar: 'غير مقروء' },
+  'source': { en: 'Source', fr: 'Source', ar: 'المصدر' },
+  'category': { en: 'Category', fr: 'Catégorie', ar: 'الفئة' },
+  'time': { en: 'Time', fr: 'Temps', ar: 'الوقت' },
+
+  // Header
+  'refresh': { en: 'Refresh', fr: 'Rafraîchir', ar: 'تحديث' },
+  'export': { en: 'Export', fr: 'Exporter', ar: 'تصدير' },
+
+  // Dashboard
+  'today': { en: 'Today', fr: "Aujourd'hui", ar: 'اليوم' },
+  'thisMonth': { en: 'This Month', fr: 'Ce mois', ar: 'هذا الشهر' },
+  'thisYear': { en: 'This Year', fr: 'Cette année', ar: 'هذه السنة' },
+  'articlesRead': { en: 'articles read', fr: 'articles lus', ar: 'مقالات مقروءة' },
+  'readingActivityLast7Days': { en: 'Reading Activity (Last 7 Days)', fr: 'Activité de lecture (7 derniers jours)', ar: 'نشاط القراءة (آخر 7 أيام)' },
+  'topNewsSources': { en: 'Top News Sources', fr: 'Meilleures sources', ar: 'أفضل المصادر' },
+  'noReadingDataYet': { en: 'No reading data yet. Start reading articles to see statistics!', fr: "Pas encore de données de lecture. Commencez à lire des articles pour voir les statistiques !", ar: 'لا توجد بيانات قراءة بعد. ابدأ بقراءة المقالات لرؤية الإحصائيات!' },
+
+  // States & messages
+  'loadingArticles': { en: 'Loading news articles...', fr: 'Chargement des articles...', ar: 'جاري تحميل الأخبار...' },
+  'noArticlesMatchFilters': { en: 'No articles match your filters.', fr: "Aucun article ne correspond à vos filtres.", ar: 'لا توجد مقالات مطابقة لمرشحاتك.' },
+  'noArticlesAvailableYet': { en: 'No articles available yet.', fr: 'Aucun article disponible pour le moment.', ar: 'لا توجد مقالات متاحة بعد.' },
+  'articleMarkedRead': { en: 'Article marked as read', fr: 'Article marqué comme lu', ar: 'تم تحديد المقال كمقروء' },
+  'articleMarkedReadDesc': { en: 'Article has been added to your reading history.', fr: 'L\'article a été ajouté à votre historique de lecture.', ar: 'تمت إضافة المقال إلى سجل القراءة.' },
+  'exportSuccessful': { en: 'Export successful', fr: 'Export réussi', ar: 'تم التصدير بنجاح' },
+  'exportSuccessfulDesc': { en: 'Your reading history has been exported to CSV.', fr: 'Votre historique de lecture a été exporté en CSV.', ar: 'تم تصدير سجل القراءة إلى CSV.' },
+
+  // Article card
+  'readLabel': { en: 'Read', fr: 'Lu', ar: 'مقروء' },
+
+  // Notifications
+  'newArticlesAvailable': { en: 'new articles available', fr: 'nouveaux articles disponibles', ar: 'مقالات جديدة متاحة' }
 };
 
 export const useTranslation = () => {
