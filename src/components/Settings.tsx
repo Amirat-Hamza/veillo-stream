@@ -111,6 +111,7 @@ const saveSettings = () => {
   try {
     localStorage.setItem('newsVeilleSettings', JSON.stringify(settings));
     window.dispatchEvent(new CustomEvent('newsVeille:sourcesUpdated'));
+    window.dispatchEvent(new CustomEvent('newsVeille:settingsUpdated'));
     toast({
       title: "Settings Saved",
       description: "Your settings have been saved successfully.",
@@ -705,7 +706,22 @@ const resetSettings = () => {
               <Label>Language</Label>
               <Select
                 value={settings.language}
-                onValueChange={(value) => setSettings(prev => ({ ...prev, language: value }))}
+                onValueChange={(value) => {
+                  setSettings(prev => ({ ...prev, language: value }));
+                  // Immediately save and notify about language change
+                  const newSettings = { ...settings, language: value };
+                  localStorage.setItem('newsVeilleSettings', JSON.stringify(newSettings));
+                  window.dispatchEvent(new CustomEvent('newsVeille:settingsUpdated'));
+                  
+                  // Set document direction for Arabic
+                  document.documentElement.dir = value === 'ar' ? 'rtl' : 'ltr';
+                  document.documentElement.lang = value;
+                  
+                  toast({
+                    title: "Language Changed",
+                    description: "Interface language has been updated.",
+                  });
+                }}
               >
                 <SelectTrigger>
                   <SelectValue />
