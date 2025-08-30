@@ -182,7 +182,13 @@ export const NewsVeille = () => {
       if (selectedSource !== 'all' && article.source !== selectedSource) {
         return false;
       }
-      if (selectedCategory !== 'all' && article.category !== selectedCategory) {
+      // Handle Facebook category filtering
+      if (selectedCategory === 'facebook') {
+        // Show only Facebook posts (articles with category 'facebook' or source containing 'facebook')
+        if (article.category !== 'facebook' && !article.source.toLowerCase().includes('facebook')) {
+          return false;
+        }
+      } else if (selectedCategory !== 'all' && article.category !== selectedCategory) {
         return false;
       }
       if (showUnreadOnly && article.isRead) {
@@ -196,7 +202,6 @@ export const NewsVeille = () => {
       return true;
     });
   }, [articles, searchTerm, selectedSource, selectedCategory, showUnreadOnly, timeRange]);
-
 
   const categories = useMemo(() => 
     [...new Set(articles.map(a => a.category).filter(Boolean))].sort(), 

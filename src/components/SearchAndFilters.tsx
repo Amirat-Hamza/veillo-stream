@@ -1,8 +1,9 @@
+
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Search, Filter, X } from 'lucide-react';
+import { Search, Filter, X, Facebook } from 'lucide-react';
 import { useTranslation } from '@/hooks/useTranslation';
 
 interface SearchAndFiltersProps {
@@ -52,6 +53,10 @@ export const SearchAndFilters = ({
     onTimeRangeChange(0); // Reset to All time
   };
 
+  const handleShowFacebookOnly = () => {
+    onCategoryChange('facebook');
+  };
+
   return (
     <div className="space-y-4">
       <div className="relative">
@@ -89,7 +94,8 @@ export const SearchAndFilters = ({
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">{t('allCategories')}</SelectItem>
-            {categories.map(category => (
+            <SelectItem value="facebook">Facebook</SelectItem>
+            {categories.filter(cat => cat !== 'facebook').map(category => (
               <SelectItem key={category} value={category}>{category}</SelectItem>
             ))}
           </SelectContent>
@@ -119,6 +125,16 @@ export const SearchAndFilters = ({
           onClick={() => onUnreadOnlyChange(!showUnreadOnly)}
         >
           {t('unreadOnly')}
+        </Button>
+
+        <Button
+          variant={selectedCategory === 'facebook' ? "default" : "outline"}
+          size="sm"
+          onClick={handleShowFacebookOnly}
+          className="gap-2"
+        >
+          <Facebook className="h-4 w-4" />
+          Facebook Posts
         </Button>
 
         {hasActiveFilters && (
@@ -163,7 +179,14 @@ export const SearchAndFilters = ({
           )}
           {selectedCategory !== 'all' && (
             <Badge variant="secondary" className="gap-1">
-              {t('category')}: {selectedCategory}
+              {selectedCategory === 'facebook' ? (
+                <div className="flex items-center gap-1">
+                  <Facebook className="h-3 w-3" />
+                  Facebook Posts
+                </div>
+              ) : (
+                `${t('category')}: ${selectedCategory}`
+              )}
               <X 
                 className="h-3 w-3 cursor-pointer" 
                 onClick={() => onCategoryChange('all')}
