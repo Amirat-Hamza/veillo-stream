@@ -34,17 +34,7 @@ export const FacebookSourcesManager = () => {
     if (!newSourceName.trim() || !newSourceUrl.trim()) {
       toast({
         title: 'Error',
-        description: 'Please provide both name and URL for the Facebook page',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    // Validate Facebook URL
-    if (!newSourceUrl.includes('facebook.com/')) {
-      toast({
-        title: 'Error', 
-        description: 'Please provide a valid Facebook page URL',
+        description: 'Please provide both name and RSS URL for the Facebook source',
         variant: 'destructive',
       });
       return;
@@ -65,7 +55,7 @@ export const FacebookSourcesManager = () => {
 
     toast({
       title: 'Success',
-      description: 'Facebook page added successfully',
+      description: 'Facebook RSS source added successfully',
     });
   };
 
@@ -75,7 +65,7 @@ export const FacebookSourcesManager = () => {
 
     toast({
       title: 'Success',
-      description: 'Facebook page removed successfully',
+      description: 'Facebook RSS source removed successfully',
     });
   };
 
@@ -91,45 +81,45 @@ export const FacebookSourcesManager = () => {
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
           <Facebook className="h-5 w-5 text-blue-600" />
-          Facebook Pages
+          Facebook RSS Sources
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Add new Facebook source */}
         <div className="space-y-4 p-4 border rounded-lg">
-          <h4 className="font-medium">Add Facebook Page</h4>
+          <h4 className="font-medium">Add Facebook RSS Source</h4>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="fb-name">Page Name</Label>
+              <Label htmlFor="fb-name">Source Name</Label>
               <Input
                 id="fb-name"
                 value={newSourceName}
                 onChange={(e) => setNewSourceName(e.target.value)}
-                placeholder="e.g., BBC News, CNN"
+                placeholder="e.g., BBC Facebook, CNN Facebook"
               />
             </div>
             <div>
-              <Label htmlFor="fb-url">Facebook Page URL</Label>
+              <Label htmlFor="fb-url">RSS Feed URL</Label>
               <Input
                 id="fb-url"
                 value={newSourceUrl}
                 onChange={(e) => setNewSourceUrl(e.target.value)}
-                placeholder="https://www.facebook.com/BBCNews"
+                placeholder="https://rsshub.app/facebook/page/BBCNews"
               />
             </div>
           </div>
           <Button onClick={addFacebookSource} className="w-full">
             <Plus className="h-4 w-4 mr-2" />
-            Add Facebook Page
+            Add Facebook RSS Source
           </Button>
         </div>
 
         {/* List existing Facebook sources */}
         <div className="space-y-2">
-          <h4 className="font-medium">Configured Facebook Pages ({facebookSources.length})</h4>
+          <h4 className="font-medium">Configured Facebook RSS Sources ({facebookSources.length})</h4>
           {facebookSources.length === 0 ? (
             <p className="text-muted-foreground text-sm">
-              No Facebook pages configured. Add your first Facebook page above.
+              No Facebook RSS sources configured. Add your first Facebook RSS feed above.
             </p>
           ) : (
             facebookSources.map((source, index) => (
@@ -163,7 +153,7 @@ export const FacebookSourcesManager = () => {
         </div>
 
         <div className="text-xs text-muted-foreground">
-          <p><strong>Note:</strong> Facebook scraping works by fetching publicly available content from Facebook pages. Some pages may have restrictions or require login, which may limit the content that can be scraped.</p>
+          <p><strong>Note:</strong> Add Facebook RSS feeds from services like RSSHub (e.g., https://rsshub.app/facebook/page/PageName) or other RSS aggregators that provide Facebook content feeds.</p>
         </div>
       </CardContent>
     </Card>
