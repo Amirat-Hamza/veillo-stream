@@ -1,3 +1,4 @@
+
 import { useState, useMemo, useEffect } from 'react';
 import { NewsCard } from './NewsCard';
 import { Dashboard } from './Dashboard';
@@ -8,15 +9,17 @@ import { useNewsData } from '@/hooks/useNewsData';
 import { useToast } from '@/hooks/use-toast';
 import { ThemeProvider } from 'next-themes';
 import { useTranslation } from '@/hooks/useTranslation';
+import { LanguageSwitcher } from './LanguageSwitcher';
 
 export const NewsVeille = () => {
+  // Default: open Settings first, show Facebook category, and 96h time range
   const [showDashboard, setShowDashboard] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
+  const [showSettings, setShowSettings] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSource, setSelectedSource] = useState('all');
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedCategory, setSelectedCategory] = useState('facebook');
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
-  const [timeRange, setTimeRange] = useState(48);
+  const [timeRange, setTimeRange] = useState(96);
   const [availableSources, setAvailableSources] = useState<string[]>([]);
   const [lastNotificationTime, setLastNotificationTime] = useState<number>(0);
   const [previousArticleCount, setPreviousArticleCount] = useState<number>(0);
@@ -24,7 +27,7 @@ export const NewsVeille = () => {
   useEffect(() => {
     const s = JSON.parse(localStorage.getItem('newsVeilleSettings') || '{}');
     if (typeof s.timeRange !== 'number') {
-      s.timeRange = 48;
+      s.timeRange = 96; // default to last 4 days
       localStorage.setItem('newsVeilleSettings', JSON.stringify(s));
     }
     // Sync local state with saved settings (so the Select shows the actual value)
@@ -235,6 +238,11 @@ export const NewsVeille = () => {
         />
 
         <main className="container mx-auto px-4 py-6">
+          {/* Quick language switcher always visible */}
+          <div className="flex justify-end mb-4">
+            <LanguageSwitcher />
+          </div>
+
           {showSettings ? (
             <Settings />
           ) : showDashboard ? (
