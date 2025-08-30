@@ -1,4 +1,3 @@
-
 import { NewsArticle } from '@/types/news';
 
 const CORS_PROXIES = [
@@ -67,7 +66,6 @@ export const scrapeFacebookPage = async (pageUrl: string, pageName: string): Pro
               'Accept-Language': 'en-US,en;q=0.8',
               'Cache-Control': 'no-cache',
               'Pragma': 'no-cache',
-              // Note: r.jina.ai may ignore headers; safe to include for other proxies
             }
           });
           
@@ -105,14 +103,11 @@ const extractPostsFromFacebookHTML = (html: string, pageName: string, pageUrl: s
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
     
-    // Try different selectors for Facebook posts (include mobile/mbasic variants)
     const postSelectors = [
-      // mbasic/m variants
       'div[id^="m_story_permalink_view"] article',
       'div[id^="m_story_permalink_view"]',
       'article',
-      'div[data-ft]', // often present in mobile stories
-      // desktop variants
+      'div[data-ft]',
       '[data-pagelet="FeedUnit"]',
       '[data-testid="fbfeed_story"]',
       '.userContentWrapper',
@@ -146,7 +141,7 @@ const extractPostsFromFacebookHTML = (html: string, pageName: string, pageUrl: s
               link: jsonData.url || pageUrl,
               pubDate: jsonData.datePublished || jsonData.dateModified || new Date().toISOString(),
               source: pageName,
-              category: 'Facebook',
+              category: 'facebook', // FIXED: ensure lowercase to match filtering
               isRead: false,
             };
             
@@ -161,20 +156,15 @@ const extractPostsFromFacebookHTML = (html: string, pageName: string, pageUrl: s
       }
     }
     
-    // Extract posts from DOM elements
     posts.forEach((post, index) => {
       try {
-        // Try to extract post text
         const textSelectors = [
-          // desktop
           '[data-testid="post_message"]',
           '.userContent',
           '.text_exposed_show',
           '.story_body_container p',
-          // mobile/mbasic
           'div > p',
           'span',
-          // generic
           'p',
           '.post-content',
         ];
@@ -188,16 +178,13 @@ const extractPostsFromFacebookHTML = (html: string, pageName: string, pageUrl: s
           }
         }
         
-        // Try to extract timestamp
         const timeSelectors = [
-          // desktop
           '[data-testid="story-subtitle"] time',
           'time',
           '.timestamp',
           '[data-utime]',
           '.story_body_container time',
-          // mobile/mbasic variants
-          'abbr', // e.g., relative time on mobile
+          'abbr',
         ];
         
         let timestamp = new Date().toISOString();
@@ -210,7 +197,6 @@ const extractPostsFromFacebookHTML = (html: string, pageName: string, pageUrl: s
                             timeElement.textContent;
             if (timeValue) {
               try {
-                // Handle Unix timestamp
                 if (/^\d{10}$/.test(timeValue)) {
                   timestamp = new Date(parseInt(timeValue) * 1000).toISOString();
                 } else {
@@ -220,20 +206,16 @@ const extractPostsFromFacebookHTML = (html: string, pageName: string, pageUrl: s
                   }
                 }
                 break;
-              } catch (e) {
-                // Continue with current timestamp
-              }
+              } catch (e) {}
             }
           }
         }
         
-        // Try to extract link
         const linkSelectors = [
           'a[href*="/posts/"]',
           'a[href*="/story.php"]',
           'a[href*="fbid="]',
           '.story_body_container a',
-          // mobile/mbasic sometimes uses absolute links on anchors
           'a[href*="facebook.com"]',
         ];
         
@@ -250,7 +232,7 @@ const extractPostsFromFacebookHTML = (html: string, pageName: string, pageUrl: s
           }
         }
         
-        if (postText.length > 10) { // Only include posts with meaningful content
+        if (postText.length > 10) {
           const article: NewsArticle = {
             id: `fb-${pageName}-${index}-${Date.now()}`,
             title: postText.substring(0, 100) + (postText.length > 100 ? '...' : ''),
@@ -258,7 +240,7 @@ const extractPostsFromFacebookHTML = (html: string, pageName: string, pageUrl: s
             link: postLink,
             pubDate: timestamp,
             source: pageName,
-            category: 'facebook', // normalized to lowercase to match filtering
+            category: 'facebook',
             isRead: false,
           };
           
@@ -272,7 +254,6 @@ const extractPostsFromFacebookHTML = (html: string, pageName: string, pageUrl: s
       }
     });
     
-    // If still no articles, try a more aggressive text extraction
     if (articles.length === 0) {
       const allText = doc.body?.textContent || '';
       const sentences = allText.split(/[.!?]+/).filter(s => s.trim().length > 50);
@@ -297,5 +278,5 @@ const extractPostsFromFacebookHTML = (html: string, pageName: string, pageUrl: s
     console.error('Error parsing Facebook HTML:', error);
   }
   
-  return articles.slice(0, 20); // Limit to 20 most recent posts
+  return articles.slice(0, 20);
 };

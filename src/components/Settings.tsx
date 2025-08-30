@@ -12,6 +12,8 @@ import { NewsSource } from '@/types/news';
 import { useTranslation } from '@/hooks/useTranslation';
 import { FacebookSourcesManager } from './FacebookSourcesManager';
 
+type Language = 'en' | 'fr' | 'ar';
+
 const DEFAULT_SOURCES: NewsSource[] = [
   { name: 'BBC News', url: 'https://feeds.bbci.co.uk/news/rss.xml', category: 'International' },
   { name: 'Al Jazeera', url: 'https://www.aljazeera.com/xml/rss/all.xml', category: 'International' },
@@ -30,6 +32,7 @@ export const Settings = () => {
   const [soundNotifications, setSoundNotifications] = useState(true);
   const [dndStart, setDndStart] = useState('22:00');
   const [dndEnd, setDndEnd] = useState('08:00');
+  const [language, setLanguage] = useState<Language>('en');
   const { toast } = useToast();
   const { t } = useTranslation();
 
@@ -40,6 +43,7 @@ export const Settings = () => {
     setSoundNotifications(settings.soundNotifications !== false);
     setDndStart(settings.dndStart || '22:00');
     setDndEnd(settings.dndEnd || '08:00');
+    setLanguage((settings.language as Language) || 'en');
   }, []);
 
   const saveSettings = (updatedSettings: any) => {
@@ -130,6 +134,18 @@ export const Settings = () => {
     saveSettings(settings);
   };
 
+  const handleLanguageChange = (value: Language) => {
+    setLanguage(value);
+    const settings = JSON.parse(localStorage.getItem('newsVeilleSettings') || '{}');
+    settings.language = value;
+    saveSettings(settings);
+    window.dispatchEvent(new Event('newsVeille:settingsUpdated'));
+    toast({
+      title: t('languageChanged'),
+      description: t('languageChangedDesc'),
+    });
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
@@ -165,7 +181,6 @@ export const Settings = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* Add new RSS source */}
               <div className="space-y-4 p-4 border rounded-lg">
                 <h4 className="font-medium">{t('addRssSource')}</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -197,7 +212,6 @@ export const Settings = () => {
                         <SelectItem value="International">{t('international')}</SelectItem>
                         <SelectItem value="Algeria">{t('algeria')}</SelectItem>
                         <SelectItem value="Tunisia">{t('tunisia')}</SelectItem>
-                        {/* Add more categories as needed */}
                       </SelectContent>
                     </Select>
                   </div>
@@ -208,7 +222,6 @@ export const Settings = () => {
                 </Button>
               </div>
 
-              {/* List existing RSS sources */}
               <div className="space-y-2">
                 <h4 className="font-medium">{t('configuredRssSources')} ({rssSources.length})</h4>
                 {rssSources.length === 0 ? (
@@ -305,7 +318,24 @@ export const Settings = () => {
                 {t('generalSettings')}
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <h4 className="font-medium">{t('language')}</h4>
+                <p className="text-sm text-muted-foreground">
+                  {t('languageChangedDesc')}
+                </p>
+                <Select value={language} onValueChange={(val) => handleLanguageChange(val as Language)}>
+                  <SelectTrigger className="w-full md:w-64">
+                    <SelectValue placeholder={t('language')} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="en">English</SelectItem>
+                    <SelectItem value="fr">Français</SelectItem>
+                    <SelectItem value="ar">العربية</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="space-y-2">
                 <h4 className="font-medium">{t('doNotDisturb')}</h4>
                 <p className="text-sm text-muted-foreground">

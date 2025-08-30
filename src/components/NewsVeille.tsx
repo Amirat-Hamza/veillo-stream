@@ -1,4 +1,3 @@
-
 import { useState, useMemo, useEffect } from 'react';
 import { NewsCard } from './NewsCard';
 import { Dashboard } from './Dashboard';
@@ -12,9 +11,9 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { LanguageSwitcher } from './LanguageSwitcher';
 
 export const NewsVeille = () => {
-  // Default: open Settings first, show Facebook category, and 96h time range
+  // Default: open news list (not Settings), keep Facebook category and 96h time range
   const [showDashboard, setShowDashboard] = useState(false);
-  const [showSettings, setShowSettings] = useState(true);
+  const [showSettings, setShowSettings] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSource, setSelectedSource] = useState('all');
   const [selectedCategory, setSelectedCategory] = useState('facebook');
@@ -177,7 +176,6 @@ export const NewsVeille = () => {
   const filteredArticles = useMemo(() => {
     const now = Date.now();
 
-    // If Facebook is selected: enforce at least 96h (4 days), unless timeRange is 0 (All)
     const effectiveTimeRange =
       selectedCategory === 'facebook'
         ? (timeRange === 0 ? 0 : Math.max(timeRange, 96))
@@ -193,9 +191,7 @@ export const NewsVeille = () => {
       if (selectedSource !== 'all' && article.source !== selectedSource) {
         return false;
       }
-      // Handle Facebook category filtering
       if (selectedCategory === 'facebook') {
-        // Show only Facebook posts (articles with category 'facebook' or source containing 'facebook')
         if (article.category !== 'facebook' && !article.source.toLowerCase().includes('facebook')) {
           return false;
         }
@@ -205,7 +201,6 @@ export const NewsVeille = () => {
       if (showUnreadOnly && article.isRead) {
         return false;
       }
-      // Apply client-side time filtering for instant feedback (0 = All)
       if (effectiveTimeRange > 0) {
         const pub = new Date(article.pubDate).getTime();
         if (isNaN(pub) || pub < threshold) return false;
