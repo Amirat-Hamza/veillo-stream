@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { NewsArticle, NewsSource, ReadingStats } from '@/types/news';
+import { scrapeFacebookPage } from '@/services/facebookScraper';
 
 const NEWS_SOURCES: NewsSource[] = [
   { name: 'BBC News', url: 'https://feeds.bbci.co.uk/news/rss.xml', category: 'International' },
@@ -242,7 +243,12 @@ export const useNewsData = () => {
       const configuredSources: NewsSource[] = (Array.isArray(settings.rssSources) && settings.rssSources.length > 0)
         ? settings.rssSources
         : NEWS_SOURCES;
-      const enabledSources = configuredSources.filter(source => source.enabled !== false);
+      
+      // Get Facebook sources
+      const facebookSources = settings.facebookSources || [];
+      
+      const enabledRssSources = configuredSources.filter(source => source.enabled !== false);
+      const enabledFacebookSources = facebookSources.filter((source: any) => source.enabled !== false);
 
       let hasRenderedFirstBatch = false;
 
@@ -274,109 +280,122 @@ export const useNewsData = () => {
         return addedCount;
       };
 
-      console.log(`Progressively fetching from ${enabledSources.length} sources`);
+      console.log(`Progressively fetching from ${enabledRssSources.length} RSS sources and ${enabledFacebookSources.length} Facebook sources`);
 
-      for (const source of enabledSources) {
-        console.log(`→ Source: ${source.name}`);
-        // 1) Fetch the main feed first (do not abort pagination if this fails)
-        let initial: NewsArticle[] = [];
+      // Fetch from RSS sources (existing logic)
+      for (const source of enabledRssSources) {
+        console.log(`→ RSS Source: ${source.name}`);
         try {
-          initial = await parseRSSFeed(source);
+          const initial = await parseRSSFeed(source);
           console.log(`${source.name}: initial batch size ${initial.length}`);
+          appendArticles(initial);
+          
+          try {
+            const u = new URL(source.url);
+            const wpDomains = new Set(['www.echoroukonline.com','www.ennaharonline.com','www.aljazeera.com']);
+            if (wpDomains.has(u.hostname)) {
+              const origin = u.origin;
+              const isFeedPath = /\/feed\/?($|\?)/.test(u.pathname);
+
+              const buildPagedCandidates = (p: number) => {
+                const candidates: string[] = [];
+                if (isFeedPath) {
+                  candidates.push(`${origin}/feed/?paged=${p}`);
+                  candidates.push(`${origin}/page/${p}/?feed=rss2`);
+                } else {
+                  const sep = source.url.includes('?') ? '&' : '?';
+                  candidates.push(`${source.url}${sep}paged=${p}`);
+                  candidates.push(`${origin}/page/${p}/?feed=rss2`);
+                  candidates.push(`${origin}/feed/?paged=${p}`);
+                }
+                return candidates;
+              };
+
+              let page = initial.length > 0 ? 2 : 1; // if initial failed, start at page 1
+              let consecutiveEmpty = 0;
+              let consecutiveNoNew = 0;
+              let consecutiveOldPages = 0;
+              const fourDaysAgo = new Date();
+              fourDaysAgo.setDate(fourDaysAgo.getDate() - DAYS_TO_FETCH);
+              
+              while (page <= MAX_PAGES_PER_SOURCE) { // paginate until empty/new items stop
+                let pageArticles: NewsArticle[] = [];
+                const candidates = buildPagedCandidates(page);
+
+                for (const url of candidates) {
+                  console.log(`Fetching ${source.name} page ${page}: ${url}`);
+                  pageArticles = await parseRSSFeed({ ...source, url });
+                  if (pageArticles.length > 0) break;
+                }
+
+                if (pageArticles.length === 0) {
+                  consecutiveEmpty++;
+                  console.log(`${source.name}: empty page ${page} (${consecutiveEmpty} in a row)`);
+                  if (consecutiveEmpty >= 3) {
+                    console.log(`${source.name}: reached end after ${consecutiveEmpty} empty pages`);
+                    break;
+                  }
+                  page++;
+                  await new Promise(r => setTimeout(r, 200));
+                  continue;
+                } else {
+                  consecutiveEmpty = 0;
+                }
+
+                // Check if all articles in this page are older than 4 days
+                const hasRecentArticles = pageArticles.some(article => {
+                  const articleDate = new Date(article.pubDate);
+                  return articleDate >= fourDaysAgo;
+                });
+
+                if (!hasRecentArticles && pageArticles.length > 0) {
+                  consecutiveOldPages++;
+                  console.log(`${source.name}: page ${page} has only old articles (${consecutiveOldPages} in a row)`);
+                  if (consecutiveOldPages >= 2) {
+                    console.log(`${source.name}: stopping - reached articles older than ${DAYS_TO_FETCH} days`);
+                    break;
+                  }
+                } else if (hasRecentArticles) {
+                  consecutiveOldPages = 0;
+                }
+
+                const added = appendArticles(pageArticles);
+                if (added === 0) {
+                  consecutiveNoNew++;
+                  console.log(`${source.name}: no new items at page ${page} (${consecutiveNoNew} in a row)`);
+                  if (consecutiveNoNew >= 2) {
+                    console.log(`${source.name}: stopping after consecutive no-new pages`);
+                    break;
+                  }
+                } else {
+                  consecutiveNoNew = 0;
+                }
+
+                page++;
+                await new Promise(r => setTimeout(r, 200)); // gentle rate limit
+              }
+            }
+          } catch (err) {
+            console.warn(`${source.name}: pagination failed`, err);
+          }
         } catch (e) {
           console.warn(`${source.name}: initial fetch failed`, e);
         }
-        appendArticles(initial); // keep duplicates
+      }
 
-        // 2) Paginate ONLY for known WordPress domains using /feed/?paged=N or /page/N/?feed=rss2
+      // Fetch from Facebook sources
+      for (const fbSource of enabledFacebookSources) {
+        console.log(`→ Facebook Source: ${fbSource.name}`);
         try {
-          const u = new URL(source.url);
-          const wpDomains = new Set(['www.echoroukonline.com','www.ennaharonline.com','www.aljazeera.com']);
-          if (wpDomains.has(u.hostname)) {
-            const origin = u.origin;
-            const isFeedPath = /\/feed\/?($|\?)/.test(u.pathname);
-
-            const buildPagedCandidates = (p: number) => {
-              const candidates: string[] = [];
-              if (isFeedPath) {
-                candidates.push(`${origin}/feed/?paged=${p}`);
-                candidates.push(`${origin}/page/${p}/?feed=rss2`);
-              } else {
-                const sep = source.url.includes('?') ? '&' : '?';
-                candidates.push(`${source.url}${sep}paged=${p}`);
-                candidates.push(`${origin}/page/${p}/?feed=rss2`);
-                candidates.push(`${origin}/feed/?paged=${p}`);
-              }
-              return candidates;
-            };
-
-            let page = initial.length > 0 ? 2 : 1; // if initial failed, start at page 1
-            let consecutiveEmpty = 0;
-            let consecutiveNoNew = 0;
-            let consecutiveOldPages = 0;
-            const fourDaysAgo = new Date();
-            fourDaysAgo.setDate(fourDaysAgo.getDate() - DAYS_TO_FETCH);
-            
-            while (page <= MAX_PAGES_PER_SOURCE) { // paginate until empty/new items stop
-              let pageArticles: NewsArticle[] = [];
-              const candidates = buildPagedCandidates(page);
-
-              for (const url of candidates) {
-                console.log(`Fetching ${source.name} page ${page}: ${url}`);
-                pageArticles = await parseRSSFeed({ ...source, url });
-                if (pageArticles.length > 0) break;
-              }
-
-              if (pageArticles.length === 0) {
-                consecutiveEmpty++;
-                console.log(`${source.name}: empty page ${page} (${consecutiveEmpty} in a row)`);
-                if (consecutiveEmpty >= 3) {
-                  console.log(`${source.name}: reached end after ${consecutiveEmpty} empty pages`);
-                  break;
-                }
-                page++;
-                await new Promise(r => setTimeout(r, 200));
-                continue;
-              } else {
-                consecutiveEmpty = 0;
-              }
-
-              // Check if all articles in this page are older than 4 days
-              const hasRecentArticles = pageArticles.some(article => {
-                const articleDate = new Date(article.pubDate);
-                return articleDate >= fourDaysAgo;
-              });
-
-              if (!hasRecentArticles && pageArticles.length > 0) {
-                consecutiveOldPages++;
-                console.log(`${source.name}: page ${page} has only old articles (${consecutiveOldPages} in a row)`);
-                if (consecutiveOldPages >= 2) {
-                  console.log(`${source.name}: stopping - reached articles older than ${DAYS_TO_FETCH} days`);
-                  break;
-                }
-              } else if (hasRecentArticles) {
-                consecutiveOldPages = 0;
-              }
-
-              const added = appendArticles(pageArticles);
-              if (added === 0) {
-                consecutiveNoNew++;
-                console.log(`${source.name}: no new items at page ${page} (${consecutiveNoNew} in a row)`);
-                if (consecutiveNoNew >= 2) {
-                  console.log(`${source.name}: stopping after consecutive no-new pages`);
-                  break;
-                }
-              } else {
-                consecutiveNoNew = 0;
-              }
-
-              page++;
-              await new Promise(r => setTimeout(r, 200)); // gentle rate limit
-            }
-          }
-        } catch (err) {
-          console.warn(`${source.name}: pagination failed`, err);
+          const fbArticles = await scrapeFacebookPage(fbSource.url, fbSource.name);
+          console.log(`${fbSource.name}: fetched ${fbArticles.length} Facebook posts`);
+          appendArticles(fbArticles);
+        } catch (error) {
+          console.error(`${fbSource.name}: Facebook scraping failed`, error);
         }
+        
+        // Add delay between Facebook requests to avoid rate limiting
+        await new Promise(r => setTimeout(r, 1000));
       }
 
       setLastUpdate(new Date());
