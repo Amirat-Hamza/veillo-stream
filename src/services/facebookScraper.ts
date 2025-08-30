@@ -1,3 +1,4 @@
+
 import { NewsArticle } from '@/types/news';
 
 // Prioritize the text proxy first; it's often the only one that works client-side
@@ -16,7 +17,7 @@ const RSSHUB_INSTANCES = [
   'https://rsshub.woodland.cafe',
 ];
 
-const REQUEST_TIMEOUT_MS = 20000; // slightly higher timeout
+const REQUEST_TIMEOUT_MS = 20000;
 const DAYS_TO_FETCH = 4;
 
 const fetchWithTimeout = async (
@@ -34,51 +35,80 @@ const fetchWithTimeout = async (
   }
 };
 
-// Helper function to clean and validate text content
+// Enhanced text cleaning to extract readable content from HTML
 const cleanText = (text: string): string => {
   if (!text) return '';
   
-  // Remove HTML tags
+  // Remove HTML tags and their content
+  text = text.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
+  text = text.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '');
   text = text.replace(/<[^>]*>/g, ' ');
   
-  // Remove JavaScript-like patterns
+  // Decode HTML entities
+  text = text.replace(/&nbsp;/g, ' ');
+  text = text.replace(/&amp;/g, '&');
+  text = text.replace(/&lt;/g, '<');
+  text = text.replace(/&gt;/g, '>');
+  text = text.replace(/&quot;/g, '"');
+  text = text.replace(/&#39;/g, "'");
+  text = text.replace(/&apos;/g, "'");
+  
+  // Remove JavaScript-like patterns and technical content
   text = text.replace(/function\s*\([^)]*\)\s*\{[^}]*\}/g, '');
   text = text.replace(/\{[^}]*:\s*[^}]*\}/g, '');
   text = text.replace(/require\([^)]*\)/g, '');
-  text = text.replace(/\w+\([^)]*\)/g, '');
+  text = text.replace(/console\.[a-z]+\([^)]*\)/gi, '');
+  text = text.replace(/\$\([^)]*\)/g, '');
+  text = text.replace(/jQuery\([^)]*\)/g, '');
   
   // Remove URLs and technical patterns
   text = text.replace(/https?:\/\/[^\s]+/g, '');
   text = text.replace(/www\.[^\s]+/g, '');
   text = text.replace(/\b\d{10,}\b/g, ''); // Remove long numbers
+  text = text.replace(/[a-f0-9]{8,}/gi, ''); // Remove hex strings
   
-  // Remove special characters and normalize spaces
+  // Remove Facebook-specific technical terms
+  text = text.replace(/\b(data-[a-z-]+|aria-[a-z-]+|role|class|id)="[^"]*"/gi, '');
+  text = text.replace(/\b(onclick|onload|onerror)\s*=\s*[^>\s]+/gi, '');
+  
+  // Clean up punctuation and spaces
   text = text.replace(/[{}()[\]]/g, ' ');
   text = text.replace(/[;,.:!?]+/g, '. ');
   text = text.replace(/\s+/g, ' ');
+  text = text.replace(/\.\s*\.\s*/g, '. ');
   
   return text.trim();
 };
 
-// Helper function to check if text is meaningful content
+// Enhanced content validation
 const isValidContent = (text: string): boolean => {
-  if (!text || text.length < 20) return false;
+  if (!text || text.length < 15) return false;
 
-  // Relaxed: do NOT penalize the word "facebook" to avoid dropping valid content
-  const technicalKeywords = ['function', 'require', 'bootstrap', 'account', 'password', 'login'];
+  // Check for meaningful sentences
+  const sentences = text.split(/[.!?]+/).filter(s => s.trim().length > 10);
+  if (sentences.length === 0) return false;
+
+  // Reject technical keywords (but allow some Facebook-related terms)
+  const technicalKeywords = ['function', 'require', 'bootstrap', 'console', 'jquery', 'onclick', 'data-'];
   const keywordCount = technicalKeywords.filter(keyword =>
     text.toLowerCase().includes(keyword)
   ).length;
 
-  if (keywordCount > 2) return false;
+  if (keywordCount > 1) return false;
 
-  const alphaCount = (text.match(/[a-zA-Z]/g) || []).length;
-  if (alphaCount < text.length * 0.5) return false;
+  // Check for reasonable text content
+  const alphaCount = (text.match(/[a-zA-Z\u0600-\u06FF]/g) || []).length; // Include Arabic
+  if (alphaCount < text.length * 0.4) return false;
+
+  // Must contain some real words
+  const wordPattern = /\b[a-zA-Z\u0600-\u06FF]{3,}\b/g;
+  const words = text.match(wordPattern) || [];
+  if (words.length < 3) return false;
 
   return true;
 };
 
-// NEW: RSSHub fallback to fetch Facebook page posts as RSS
+// RSSHub fallback to fetch Facebook page posts as RSS
 const fetchRssHubFeed = async (pageId: string, pageName: string): Promise<NewsArticle[]> => {
   console.log(`Attempting RSSHub fallback for Facebook page: ${pageId}`);
 
@@ -88,9 +118,7 @@ const fetchRssHubFeed = async (pageId: string, pageName: string): Promise<NewsAr
   // Build candidate RSS URLs across multiple instances
   const rssCandidates: string[] = [];
   RSSHUB_INSTANCES.forEach((base) => {
-    // Standard page route
     rssCandidates.push(`${base}/facebook/page/${pageId}`);
-    // Some instances support posts as an alias; try it as well
     rssCandidates.push(`${base}/facebook/posts/${pageId}`);
   });
 
@@ -118,8 +146,6 @@ const fetchRssHubFeed = async (pageId: string, pageName: string): Promise<NewsAr
         }
 
         const xml = await resp.text();
-
-        // Parse RSS using DOMParser
         const parser = new DOMParser();
         const doc = parser.parseFromString(xml, 'text/xml');
         const items = Array.from(doc.querySelectorAll('item'));
@@ -142,7 +168,6 @@ const fetchRssHubFeed = async (pageId: string, pageName: string): Promise<NewsAr
             return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
           })();
 
-          // Prefer description > content:encoded text as summary
           const descRaw =
             item.querySelector('description')?.textContent ||
             item.querySelector('content\\:encoded')?.textContent ||
@@ -161,7 +186,6 @@ const fetchRssHubFeed = async (pageId: string, pageName: string): Promise<NewsAr
           } as NewsArticle;
         });
 
-        // Filter by the time window
         const recentArticles = articles.filter(a => {
           const d = new Date(a.pubDate);
           return !isNaN(d.getTime()) && d >= fourDaysAgo;
@@ -185,72 +209,49 @@ const fetchRssHubFeed = async (pageId: string, pageName: string): Promise<NewsAr
 export const scrapeFacebookPage = async (pageUrl: string, pageName: string): Promise<NewsArticle[]> => {
   console.log(`Attempting to scrape Facebook page: ${pageName} from ${pageUrl}`);
 
-  // Try to convert Facebook page URL to a scrapable format
   let scrapableUrl = pageUrl;
 
-  // Handle different Facebook URL formats
   if (pageUrl.includes('facebook.com/')) {
     const urlParts = pageUrl.split('facebook.com/')[1];
     const pageId = urlParts.split('/')[0].split('?')[0];
 
-    // Try multiple variants: mbasic, m, and desktop with posts/timeline variants
+    // Try r.jina.ai first as it returns clean text
+    const textProxy = 'https://r.jina.ai/';
     const urlCandidates = [
       `https://mbasic.facebook.com/${pageId}`,
-      `https://mbasic.facebook.com/${pageId}/posts`,
-      `https://mbasic.facebook.com/${pageId}?v=timeline`,
-      `https://mbasic.facebook.com/${pageId}?sk=posts`,
       `https://m.facebook.com/${pageId}`,
-      `https://m.facebook.com/${pageId}/posts`,
-      `https://m.facebook.com/${pageId}?v=timeline`,
-      `https://m.facebook.com/${pageId}?sk=posts`,
       `https://www.facebook.com/${pageId}`,
-      `https://www.facebook.com/${pageId}/posts`,
       pageUrl,
     ];
 
     for (const url of urlCandidates) {
-      console.log(`Trying Facebook URL: ${url}`);
+      console.log(`Trying Facebook URL with text proxy: ${url}`);
+      
+      try {
+        const proxiedUrl = `${textProxy}${url}`;
+        const response = await fetchWithTimeout(proxiedUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.5 Mobile/15E148 Safari/604.1',
+            'Accept': 'text/plain, text/html, */*',
+            'Cache-Control': 'no-cache',
+          },
+        });
 
-      for (const proxy of CORS_PROXIES) {
-        try {
-          // Build proxied URL; r.jina.ai expects full URL appended without encoding
-          const proxiedUrl = proxy.includes('r.jina.ai/')
-            ? `${proxy}${url}`
-            : `${proxy}${encodeURIComponent(url)}`;
-
-          const response = await fetchWithTimeout(proxiedUrl, {
-            headers: {
-              // Mobile UA tends to serve content with fewer interstitials
-              'User-Agent':
-                'Mozilla/5.0 (iPhone; CPU iPhone OS 15_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.5 Mobile/15E148 Safari/604.1',
-              'Accept':
-                'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-              'Accept-Language': 'en-US,en;q=0.8',
-              'Cache-Control': 'no-cache',
-              'Pragma': 'no-cache',
-            },
-          });
-
-          if (!response.ok) {
-            console.warn(`Non-OK response (${response.status}) for ${url} via ${proxy}`);
-            continue;
-          }
-
-          const html = await response.text();
-          const articles = extractPostsFromFacebookHTML(html, pageName, url);
-
+        if (response.ok) {
+          const text = await response.text();
+          const articles = extractPostsFromText(text, pageName, url);
+          
           if (articles.length > 0) {
-            console.log(`Successfully scraped ${articles.length} posts from ${pageName}`);
+            console.log(`Successfully extracted ${articles.length} posts from ${pageName} using text proxy`);
             return articles;
           }
-        } catch (error) {
-          console.warn(`Failed to scrape ${url} with proxy ${proxy}:`, error);
-          continue;
         }
+      } catch (error) {
+        console.warn(`Text proxy failed for ${url}:`, error);
       }
     }
 
-    // If all HTML attempts failed, try RSSHub fallback as a last resort
+    // Fallback to RSSHub if text extraction fails
     try {
       const rssArticles = await fetchRssHubFeed(pageId, pageName);
       if (rssArticles.length > 0) {
@@ -259,38 +260,121 @@ export const scrapeFacebookPage = async (pageUrl: string, pageName: string): Pro
     } catch (e) {
       console.warn('RSSHub fallback error:', e);
     }
+
+    // Last resort: try other proxies with HTML parsing
+    for (const proxy of CORS_PROXIES.slice(1)) { // Skip r.jina.ai since we tried it
+      for (const url of urlCandidates) {
+        try {
+          const proxiedUrl = `${proxy}${encodeURIComponent(url)}`;
+          const response = await fetchWithTimeout(proxiedUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 15_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.5 Mobile/15E148 Safari/604.1',
+              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            },
+          });
+
+          if (response.ok) {
+            const html = await response.text();
+            const articles = extractPostsFromFacebookHTML(html, pageName, url);
+            
+            if (articles.length > 0) {
+              console.log(`Successfully scraped ${articles.length} posts from ${pageName}`);
+              return articles;
+            }
+          }
+        } catch (error) {
+          console.warn(`Failed to scrape ${url} with proxy ${proxy}:`, error);
+        }
+      }
+    }
   }
 
   console.warn(`Could not scrape any posts from Facebook page: ${pageName}`);
   return [];
 };
 
+// Extract posts from clean text (works well with r.jina.ai)
+const extractPostsFromText = (text: string, pageName: string, pageUrl: string): NewsArticle[] => {
+  const articles: NewsArticle[] = [];
+  const fourDaysAgo = new Date();
+  fourDaysAgo.setDate(fourDaysAgo.getDate() - DAYS_TO_FETCH);
+
+  // Clean the text
+  const cleanedText = cleanText(text);
+  
+  // Split text into potential posts using various delimiters
+  const postDelimiters = [
+    /(?:Like|J'aime|أعجبني).{0,30}(?:Comment|Commenter|تعليق).{0,30}(?:Share|Partager|مشاركة)/gi,
+    /\n{3,}/g,
+    /\.{3,}/g,
+    /---+/g,
+    /===+/g
+  ];
+
+  let potentialPosts: string[] = [cleanedText];
+  
+  // Apply each delimiter
+  for (const delimiter of postDelimiters) {
+    const newPosts: string[] = [];
+    for (const post of potentialPosts) {
+      newPosts.push(...post.split(delimiter));
+    }
+    if (newPosts.length > potentialPosts.length) {
+      potentialPosts = newPosts;
+      break; // Use the first successful split
+    }
+  }
+
+  // Process potential posts
+  const validPosts = potentialPosts
+    .map(post => cleanText(post))
+    .filter(post => isValidContent(post))
+    .filter((post, index, array) => array.indexOf(post) === index) // Remove duplicates
+    .slice(0, 10); // Limit to 10 posts
+
+  validPosts.forEach((post, index) => {
+    if (post.length >= 20) {
+      const article: NewsArticle = {
+        id: `fb-text-${pageName}-${index}-${Date.now()}`,
+        title: post.length > 100 ? post.substring(0, 100) + '...' : post,
+        description: post,
+        link: pageUrl,
+        pubDate: new Date(Date.now() - index * 3600000).toISOString(), // Stagger by hours
+        source: pageName,
+        category: 'facebook',
+        isRead: false,
+      };
+      articles.push(article);
+    }
+  });
+
+  return articles;
+};
+
+// Enhanced HTML parsing fallback
 const extractPostsFromFacebookHTML = (html: string, pageName: string, pageUrl: string): NewsArticle[] => {
   const articles: NewsArticle[] = [];
   const fourDaysAgo = new Date();
   fourDaysAgo.setDate(fourDaysAgo.getDate() - DAYS_TO_FETCH);
 
   try {
-    // Create a temporary DOM parser
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
 
-    // Focus on mobile Facebook selectors first (mbasic, m.facebook)
+    // Enhanced post selectors for different Facebook layouts
     const postSelectors = [
-      // Mobile Facebook selectors (more reliable)
       'div[id*="m_story"]',
       'div[data-ft*="top_level"]',
       'div[data-ft*="story_id"]',
       'article[data-ft]',
       '.story_body_container',
       'div[id*="story"]',
-      // Desktop selectors
       '[data-pagelet="FeedUnit"]',
       '[data-testid="fbfeed_story"]',
       '.userContentWrapper',
       '[role="article"]',
       '.timeline-story',
-      '.post',
+      'div[data-testid="post_message"]'
     ];
 
     let posts: Element[] = [];
@@ -305,106 +389,68 @@ const extractPostsFromFacebookHTML = (html: string, pageName: string, pageUrl: s
 
     posts.forEach((post, index) => {
       try {
-        // Try multiple text extraction strategies
-        const textSelectors = [
-          // Mobile Facebook text selectors
-          'div[data-ft] > div > div:not([class])',
-          '.story_body_container div',
-          'div[data-ft] span',
-          // Generic selectors
-          '[data-testid="post_message"]',
-          '.userContent',
-          '.text_exposed_show',
-          'p',
-          'span:not([class*="icon"]):not([class*="button"])',
-        ];
+        // Extract text content with multiple strategies
+        const textElements = post.querySelectorAll('p, span, div');
+        const textContents: string[] = [];
 
-        let postTexts: string[] = [];
+        textElements.forEach(element => {
+          const text = element.textContent?.trim();
+          if (text && text.length > 20) {
+            textContents.push(text);
+          }
+        });
 
-        // Extract all potential text content
-        for (const textSelector of textSelectors) {
-          const elements = post.querySelectorAll(textSelector);
-          elements.forEach(element => {
-            const text = element.textContent?.trim();
-            if (text && text.length > 10) {
-              postTexts.push(text);
-            }
-          });
-        }
-
-        // Clean and filter texts
-        const cleanedTexts = postTexts
+        // Find the best text content
+        const validTexts = textContents
           .map(cleanText)
-          .filter(text => isValidContent(text))
-          .filter((text, idx, array) => array.indexOf(text) === idx) // Remove duplicates
-          .slice(0, 3); // Take max 3 best texts
+          .filter(isValidContent)
+          .filter((text, idx, array) => array.indexOf(text) === idx);
 
-        if (cleanedTexts.length === 0) return; // Skip if no valid content
+        if (validTexts.length === 0) return;
 
-        // Use the longest valid text as the main content
-        const postText = cleanedTexts.reduce((a, b) => (a.length > b.length ? a : b), '');
+        const bestText = validTexts.reduce((a, b) => a.length > b.length ? a : b);
 
         // Extract timestamp
-        const timeSelectors = [
-          'abbr[data-utime]',
-          'time[datetime]',
-          '[data-utime]',
-          'time',
-          '.timestamp',
-          'abbr',
-        ];
-
+        const timeElements = post.querySelectorAll('abbr[data-utime], time[datetime], [data-utime], time, .timestamp, abbr');
         let timestamp = new Date().toISOString();
-        for (const timeSelector of timeSelectors) {
-          const timeElement = post.querySelector(timeSelector);
-          if (timeElement) {
-            const timeValue =
-              timeElement.getAttribute('datetime') ||
-              timeElement.getAttribute('data-utime') ||
-              timeElement.getAttribute('title') ||
-              timeElement.textContent;
-            if (timeValue) {
-              try {
-                if (/^\d{10}$/.test(timeValue)) {
-                  timestamp = new Date(parseInt(timeValue) * 1000).toISOString();
-                } else {
-                  const parsed = new Date(timeValue);
-                  if (!isNaN(parsed.getTime())) {
-                    timestamp = parsed.toISOString();
-                  }
+        
+        for (const timeElement of timeElements) {
+          const timeValue = timeElement.getAttribute('datetime') ||
+                           timeElement.getAttribute('data-utime') ||
+                           timeElement.getAttribute('title') ||
+                           timeElement.textContent;
+          if (timeValue) {
+            try {
+              if (/^\d{10}$/.test(timeValue)) {
+                timestamp = new Date(parseInt(timeValue) * 1000).toISOString();
+              } else {
+                const parsed = new Date(timeValue);
+                if (!isNaN(parsed.getTime())) {
+                  timestamp = parsed.toISOString();
                 }
-                break;
-              } catch (e) {}
-            }
+              }
+              break;
+            } catch (e) {}
           }
         }
 
         // Extract link
-        const linkSelectors = [
-          'a[href*="/story.php"]',
-          'a[href*="/posts/"]',
-          'a[href*="fbid="]',
-          'a[href*="story_fbid"]',
-        ];
-
+        const linkElements = post.querySelectorAll('a[href*="/story.php"], a[href*="/posts/"], a[href*="fbid="], a[href*="story_fbid"]');
         let postLink = pageUrl;
-        for (const linkSelector of linkSelectors) {
-          const linkElement = post.querySelector(linkSelector);
-          if (linkElement?.getAttribute('href')) {
-            let href = linkElement.getAttribute('href') || '';
-            if (href.startsWith('/')) {
-              href = 'https://www.facebook.com' + href;
-            }
-            postLink = href;
+        
+        for (const linkElement of linkElements) {
+          const href = linkElement.getAttribute('href');
+          if (href) {
+            postLink = href.startsWith('/') ? 'https://www.facebook.com' + href : href;
             break;
           }
         }
 
-        if (postText.length > 20) {
+        if (bestText.length >= 20) {
           const article: NewsArticle = {
-            id: `fb-${pageName}-${index}-${Date.now()}`,
-            title: postText.substring(0, 100) + (postText.length > 100 ? '...' : ''),
-            description: postText,
+            id: `fb-html-${pageName}-${index}-${Date.now()}`,
+            title: bestText.length > 100 ? bestText.substring(0, 100) + '...' : bestText,
+            description: bestText,
             link: postLink,
             pubDate: timestamp,
             source: pageName,
@@ -422,64 +468,16 @@ const extractPostsFromFacebookHTML = (html: string, pageName: string, pageUrl: s
       }
     });
 
-    // Fallback 1: If no posts selected from HTML, try to parse plain text (works with r.jina.ai)
+    // If no posts found via selectors, try text-based extraction
     if (articles.length === 0) {
-      console.log('HTML selectors found no posts; trying text-mode fallback parsing');
-
-      const bodyText = cleanText(doc.body?.textContent || html);
-      // Heuristics: split around common Facebook action clusters (Like/Comment/Share in EN/FR)
-      const splits = bodyText.split(
-        /(?:Like|J.?aime).{0,15}(?:Comment|Commenter).{0,15}(?:Share|Partager)/gi
-      );
-
-      // If split produced nothing meaningful, fall back to paragraph chunks
-      const candidateBlocks =
-        splits.length > 1 ? splits : bodyText.split(/\n{2,}|\.{3,}|\r\n\r\n/);
-
-      const uniqueBlocks = Array.from(
-        new Set(
-          candidateBlocks
-            .map(b => cleanText(b))
-            .filter(b => b && b.length > 60 && isValidContent(b))
-        )
-      ).slice(0, 6); // limit to a few best blocks
-
-      uniqueBlocks.forEach((block, idx) => {
-        const article: NewsArticle = {
-          id: `fb-fallback-${pageName}-${idx}-${Date.now()}`,
-          title: block.substring(0, 100) + (block.length > 100 ? '...' : ''),
-          description: block,
-          link: pageUrl,
-          pubDate: new Date().toISOString(),
-          source: pageName,
-          category: 'facebook',
-          isRead: false,
-        };
-        // Fallback posts use "now" as timestamp; they are within range by definition
-        articles.push(article);
-      });
+      console.log('HTML selectors found no posts; trying text extraction from HTML');
+      const bodyText = doc.body?.textContent || html;
+      return extractPostsFromText(bodyText, pageName, pageUrl);
     }
 
-    // If still no meaningful content, create sample posts to demonstrate feature
-    if (articles.length === 0) {
-      console.log(`No meaningful content extracted from ${pageName}, creating sample posts`);
-
-      for (let i = 0; i < 3; i++) {
-        articles.push({
-          id: `fb-sample-${pageName}-${i}-${Date.now()}`,
-          title: `Sample post ${i + 1} from ${pageName}`,
-          description: `This is a sample Facebook post from ${pageName}. Facebook scraping is working but may need configuration for specific pages.`,
-          link: pageUrl,
-          pubDate: new Date(Date.now() - i * 3600000).toISOString(), // Stagger times by 1 hour
-          source: pageName,
-          category: 'facebook',
-          isRead: false,
-        });
-      }
-    }
   } catch (error) {
     console.error('Error parsing Facebook HTML:', error);
   }
 
-  return articles.slice(0, 10); // Limit to 10 posts max
+  return articles.slice(0, 10);
 };
