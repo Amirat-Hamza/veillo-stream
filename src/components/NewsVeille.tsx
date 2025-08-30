@@ -8,17 +8,15 @@ import { useNewsData } from '@/hooks/useNewsData';
 import { useToast } from '@/hooks/use-toast';
 import { ThemeProvider } from 'next-themes';
 import { useTranslation } from '@/hooks/useTranslation';
-import { LanguageSwitcher } from './LanguageSwitcher';
 
 export const NewsVeille = () => {
-  // Default: open news list (not Settings), show all sources and categories with 24h time range
   const [showDashboard, setShowDashboard] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSource, setSelectedSource] = useState('all');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
-  const [timeRange, setTimeRange] = useState(24);
+  const [timeRange, setTimeRange] = useState(48);
   const [availableSources, setAvailableSources] = useState<string[]>([]);
   const [lastNotificationTime, setLastNotificationTime] = useState<number>(0);
   const [previousArticleCount, setPreviousArticleCount] = useState<number>(0);
@@ -26,7 +24,7 @@ export const NewsVeille = () => {
   useEffect(() => {
     const s = JSON.parse(localStorage.getItem('newsVeilleSettings') || '{}');
     if (typeof s.timeRange !== 'number') {
-      s.timeRange = 24; // default to last 24 hours
+      s.timeRange = 48;
       localStorage.setItem('newsVeilleSettings', JSON.stringify(s));
     }
     // Sync local state with saved settings (so the Select shows the actual value)
@@ -176,9 +174,8 @@ export const NewsVeille = () => {
   const filteredArticles = useMemo(() => {
     const now = Date.now();
     const threshold = now - timeRange * 60 * 60 * 1000;
-
     return articles.filter(article => {
-      if (searchTerm && !article.title.toLowerCase().includes(searchTerm.toLowerCase()) &&
+      if (searchTerm && !article.title.toLowerCase().includes(searchTerm.toLowerCase()) && 
           !article.description.toLowerCase().includes(searchTerm.toLowerCase())) {
         return false;
       }
@@ -191,6 +188,7 @@ export const NewsVeille = () => {
       if (showUnreadOnly && article.isRead) {
         return false;
       }
+      // Apply client-side time filtering for instant feedback (0 = All)
       if (timeRange > 0) {
         const pub = new Date(article.pubDate).getTime();
         if (isNaN(pub) || pub < threshold) return false;
@@ -198,6 +196,7 @@ export const NewsVeille = () => {
       return true;
     });
   }, [articles, searchTerm, selectedSource, selectedCategory, showUnreadOnly, timeRange]);
+
 
   const categories = useMemo(() => 
     [...new Set(articles.map(a => a.category).filter(Boolean))].sort(), 
@@ -223,11 +222,6 @@ export const NewsVeille = () => {
         />
 
         <main className="container mx-auto px-4 py-6">
-          {/* Quick language switcher always visible */}
-          <div className="flex justify-end mb-4">
-            <LanguageSwitcher />
-          </div>
-
           {showSettings ? (
             <Settings />
           ) : showDashboard ? (

@@ -1,4 +1,3 @@
-
 export interface NewsArticle {
   id: string;
   title: string;
@@ -16,14 +15,6 @@ export interface NewsSource {
   category: string;
   enabled?: boolean;
   interval?: number;
-  type?: 'rss' | 'facebook'; // Add type to distinguish source types
-}
-
-export interface FacebookSource {
-  name: string;
-  url: string;
-  type: 'facebook';
-  enabled?: boolean;
 }
 
 export interface ReadingStats {
