@@ -11,14 +11,14 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { LanguageSwitcher } from './LanguageSwitcher';
 
 export const NewsVeille = () => {
-  // Default: open news list (not Settings), keep Facebook category and 96h time range
+  // Default: open news list (not Settings), show all sources and categories with 24h time range
   const [showDashboard, setShowDashboard] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSource, setSelectedSource] = useState('all');
-  const [selectedCategory, setSelectedCategory] = useState('facebook');
+  const [selectedCategory, setSelectedCategory] = useState('all');
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
-  const [timeRange, setTimeRange] = useState(96);
+  const [timeRange, setTimeRange] = useState(24);
   const [availableSources, setAvailableSources] = useState<string[]>([]);
   const [lastNotificationTime, setLastNotificationTime] = useState<number>(0);
   const [previousArticleCount, setPreviousArticleCount] = useState<number>(0);
@@ -26,7 +26,7 @@ export const NewsVeille = () => {
   useEffect(() => {
     const s = JSON.parse(localStorage.getItem('newsVeilleSettings') || '{}');
     if (typeof s.timeRange !== 'number') {
-      s.timeRange = 96; // default to last 4 days
+      s.timeRange = 24; // default to last 24 hours
       localStorage.setItem('newsVeilleSettings', JSON.stringify(s));
     }
     // Sync local state with saved settings (so the Select shows the actual value)
@@ -175,13 +175,7 @@ export const NewsVeille = () => {
 
   const filteredArticles = useMemo(() => {
     const now = Date.now();
-
-    const effectiveTimeRange =
-      selectedCategory === 'facebook'
-        ? (timeRange === 0 ? 0 : Math.max(timeRange, 96))
-        : timeRange;
-
-    const threshold = now - effectiveTimeRange * 60 * 60 * 1000;
+    const threshold = now - timeRange * 60 * 60 * 1000;
 
     return articles.filter(article => {
       if (searchTerm && !article.title.toLowerCase().includes(searchTerm.toLowerCase()) &&
@@ -191,17 +185,13 @@ export const NewsVeille = () => {
       if (selectedSource !== 'all' && article.source !== selectedSource) {
         return false;
       }
-      if (selectedCategory === 'facebook') {
-        if (article.category !== 'facebook' && !article.source.toLowerCase().includes('facebook')) {
-          return false;
-        }
-      } else if (selectedCategory !== 'all' && article.category !== selectedCategory) {
+      if (selectedCategory !== 'all' && article.category !== selectedCategory) {
         return false;
       }
       if (showUnreadOnly && article.isRead) {
         return false;
       }
-      if (effectiveTimeRange > 0) {
+      if (timeRange > 0) {
         const pub = new Date(article.pubDate).getTime();
         if (isNaN(pub) || pub < threshold) return false;
       }
