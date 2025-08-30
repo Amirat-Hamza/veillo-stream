@@ -1,4 +1,3 @@
-
 import { NewsArticle } from '@/types/news';
 
 // Prioritize the text proxy first; it's often the only one that works client-side
@@ -8,6 +7,13 @@ const CORS_PROXIES = [
   'https://corsproxy.io/?',
   'https://api.allorigins.win/raw?url=',
   'https://thingproxy.freeboard.io/fetch/',
+];
+
+// Public RSSHub instances to try as a fallback for Facebook pages
+const RSSHUB_INSTANCES = [
+  'https://rsshub.app',
+  'https://rsshub.moeyy.xyz',
+  'https://rsshub.woodland.cafe',
 ];
 
 const REQUEST_TIMEOUT_MS = 20000; // slightly higher timeout
@@ -70,6 +76,110 @@ const isValidContent = (text: string): boolean => {
   if (alphaCount < text.length * 0.5) return false;
 
   return true;
+};
+
+// NEW: RSSHub fallback to fetch Facebook page posts as RSS
+const fetchRssHubFeed = async (pageId: string, pageName: string): Promise<NewsArticle[]> => {
+  console.log(`Attempting RSSHub fallback for Facebook page: ${pageId}`);
+
+  const fourDaysAgo = new Date();
+  fourDaysAgo.setDate(fourDaysAgo.getDate() - DAYS_TO_FETCH);
+
+  // Build candidate RSS URLs across multiple instances
+  const rssCandidates: string[] = [];
+  RSSHUB_INSTANCES.forEach((base) => {
+    // Standard page route
+    rssCandidates.push(`${base}/facebook/page/${pageId}`);
+    // Some instances support posts as an alias; try it as well
+    rssCandidates.push(`${base}/facebook/posts/${pageId}`);
+  });
+
+  for (const rssUrl of rssCandidates) {
+    console.log(`Trying RSSHub URL: ${rssUrl}`);
+    for (const proxy of CORS_PROXIES) {
+      try {
+        const proxiedUrl = proxy.includes('r.jina.ai/')
+          ? `${proxy}${rssUrl}`
+          : `${proxy}${encodeURIComponent(rssUrl)}`;
+
+        const resp = await fetchWithTimeout(proxiedUrl, {
+          headers: {
+            'Accept': 'application/rss+xml, application/xml, text/xml, */*;q=0.8',
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache',
+            'User-Agent':
+              'Mozilla/5.0 (iPhone; CPU iPhone OS 15_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/15.5 Mobile/15E148 Safari/604.1',
+          },
+        });
+
+        if (!resp.ok) {
+          console.warn(`Non-OK RSS response (${resp.status}) for ${rssUrl} via ${proxy}`);
+          continue;
+        }
+
+        const xml = await resp.text();
+
+        // Parse RSS using DOMParser
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(xml, 'text/xml');
+        const items = Array.from(doc.querySelectorAll('item'));
+
+        if (!items.length) {
+          console.warn(`No <item> entries found in RSS feed from ${rssUrl}`);
+          continue;
+        }
+
+        const articles: NewsArticle[] = items.slice(0, 15).map((item, idx) => {
+          const title = cleanText(item.querySelector('title')?.textContent || '');
+          const link = (item.querySelector('link')?.textContent || '').trim();
+          const pubRaw =
+            item.querySelector('pubDate')?.textContent ||
+            item.querySelector('dc\\:date')?.textContent ||
+            item.querySelector('updated')?.textContent ||
+            '';
+          const pubDate = (() => {
+            const d = new Date(pubRaw);
+            return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+          })();
+
+          // Prefer description > content:encoded text as summary
+          const descRaw =
+            item.querySelector('description')?.textContent ||
+            item.querySelector('content\\:encoded')?.textContent ||
+            '';
+          const description = cleanText(descRaw) || title;
+
+          return {
+            id: `fb-rsshub-${pageName}-${idx}-${Date.now()}`,
+            title: title || (description ? description.substring(0, 100) : 'Facebook post'),
+            description: description || title,
+            link: link || `https://www.facebook.com/${pageId}`,
+            pubDate,
+            source: pageName,
+            category: 'facebook',
+            isRead: false,
+          } as NewsArticle;
+        });
+
+        // Filter by the time window
+        const recentArticles = articles.filter(a => {
+          const d = new Date(a.pubDate);
+          return !isNaN(d.getTime()) && d >= fourDaysAgo;
+        });
+
+        if (recentArticles.length > 0) {
+          console.log(`RSSHub fallback succeeded with ${recentArticles.length} items.`);
+          return recentArticles.slice(0, 10);
+        }
+      } catch (err) {
+        console.warn(`RSSHub fetch failed for ${rssUrl} via ${proxy}`, err);
+        continue;
+      }
+    }
+  }
+
+  console.warn('RSSHub fallback did not return any items.');
+  return [];
 };
 
 export const scrapeFacebookPage = async (pageUrl: string, pageName: string): Promise<NewsArticle[]> => {
@@ -138,6 +248,16 @@ export const scrapeFacebookPage = async (pageUrl: string, pageName: string): Pro
           continue;
         }
       }
+    }
+
+    // If all HTML attempts failed, try RSSHub fallback as a last resort
+    try {
+      const rssArticles = await fetchRssHubFeed(pageId, pageName);
+      if (rssArticles.length > 0) {
+        return rssArticles;
+      }
+    } catch (e) {
+      console.warn('RSSHub fallback error:', e);
     }
   }
 
