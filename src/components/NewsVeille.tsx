@@ -173,9 +173,17 @@ export const NewsVeille = () => {
 
   const filteredArticles = useMemo(() => {
     const now = Date.now();
-    const threshold = now - timeRange * 60 * 60 * 1000;
+
+    // If Facebook is selected: enforce at least 96h (4 days), unless timeRange is 0 (All)
+    const effectiveTimeRange =
+      selectedCategory === 'facebook'
+        ? (timeRange === 0 ? 0 : Math.max(timeRange, 96))
+        : timeRange;
+
+    const threshold = now - effectiveTimeRange * 60 * 60 * 1000;
+
     return articles.filter(article => {
-      if (searchTerm && !article.title.toLowerCase().includes(searchTerm.toLowerCase()) && 
+      if (searchTerm && !article.title.toLowerCase().includes(searchTerm.toLowerCase()) &&
           !article.description.toLowerCase().includes(searchTerm.toLowerCase())) {
         return false;
       }
@@ -195,7 +203,7 @@ export const NewsVeille = () => {
         return false;
       }
       // Apply client-side time filtering for instant feedback (0 = All)
-      if (timeRange > 0) {
+      if (effectiveTimeRange > 0) {
         const pub = new Date(article.pubDate).getTime();
         if (isNaN(pub) || pub < threshold) return false;
       }
