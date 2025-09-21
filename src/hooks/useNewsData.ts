@@ -8,6 +8,8 @@ const NEWS_SOURCES: NewsSource[] = [
   { name: 'Ennahar Online', url: 'https://www.ennaharonline.com/feed/', category: 'Algeria' },
   { name: 'TAP', url: 'https://www.tap.info.tn/rss', category: 'Tunisia' },
   { name: 'Mosaique FM', url: 'https://www.mosaiquefm.net/rss', category: 'Tunisia' },
+  { name: 'Libya Observer', url: 'https://www.libyaobserver.ly/feed', category: 'Libya' },
+  { name: 'Libya Herald', url: 'https://www.libyaherald.com/feed/', category: 'Libya' },
 ];
 
 // Multiple CORS proxy services as fallbacks (prioritize raw XML to avoid item caps)

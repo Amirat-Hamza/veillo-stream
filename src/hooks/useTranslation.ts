@@ -131,6 +131,11 @@ const translations: Translations = {
     fr: 'Algérie',
     ar: 'الجزائر'
   },
+  'libya': {
+    en: 'Libya',
+    fr: 'Libye',
+    ar: 'ليبيا'
+  },
 
   // Settings sections
   'rssSources': {

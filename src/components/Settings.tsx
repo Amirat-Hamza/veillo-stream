@@ -43,7 +43,9 @@ const defaultSettings: SettingsData = {
     { name: 'Echorouk Online', url: 'https://www.echoroukonline.com/feed/', category: 'Algeria', enabled: true, interval: 30 },
     { name: 'Ennahar Online', url: 'https://www.ennaharonline.com/feed/', category: 'Algeria', enabled: true, interval: 30 },
     { name: 'TAP', url: 'https://www.tap.info.tn/rss', category: 'Tunisia', enabled: true, interval: 30 },
-    { name: 'Mosaique FM', url: 'https://www.mosaiquefm.net/rss', category: 'Tunisia', enabled: true, interval: 30 }
+    { name: 'Mosaique FM', url: 'https://www.mosaiquefm.net/rss', category: 'Tunisia', enabled: true, interval: 30 },
+    { name: 'Libya Observer', url: 'https://www.libyaobserver.ly/feed', category: 'Libya', enabled: true, interval: 30 },
+    { name: 'Libya Herald', url: 'https://www.libyaherald.com/feed/', category: 'Libya', enabled: true, interval: 30 }
   ],
   refreshInterval: 15,
   soundNotifications: true,
