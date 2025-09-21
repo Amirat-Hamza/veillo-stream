@@ -198,10 +198,11 @@ export const NewsVeille = () => {
   }, [articles, searchTerm, selectedSource, selectedCategory, showUnreadOnly, timeRange]);
 
 
-  const categories = useMemo(() => 
-    [...new Set(articles.map(a => a.category).filter(Boolean))].sort(), 
-    [articles]
-  );
+  const categories = useMemo(() => {
+    const set = new Set(articles.map(a => a.category).filter(Boolean));
+    ['International','Algeria','Tunisia','Libya'].forEach(c => set.add(c));
+    return Array.from(set).sort();
+  }, [articles]);
 
   const unreadCount = articles.filter(a => !a.isRead).length;
   const stats = getReadingStats();

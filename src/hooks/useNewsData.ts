@@ -241,9 +241,21 @@ export const useNewsData = () => {
     setLoading(true);
     try {
       const settings = JSON.parse(localStorage.getItem('newsVeilleSettings') || '{}');
-      const configuredSources: NewsSource[] = (Array.isArray(settings.rssSources) && settings.rssSources.length > 0)
+      const storedSources: NewsSource[] = (Array.isArray(settings.rssSources) && settings.rssSources.length > 0)
         ? settings.rssSources
-        : NEWS_SOURCES;
+        : [];
+      // Merge stored sources with defaults to include any new defaults (e.g., Libya)
+      const norm = (u: string) => (u || '').trim().replace(/\/+$/, '');
+      const byUrl = new Map<string, NewsSource>();
+      storedSources.forEach(src => {
+        const key = norm(src.url);
+        byUrl.set(key, { ...src, enabled: src.enabled !== false });
+      });
+      NEWS_SOURCES.forEach(src => {
+        const key = norm(src.url);
+        if (!byUrl.has(key)) byUrl.set(key, { ...src, enabled: true });
+      });
+      const configuredSources: NewsSource[] = Array.from(byUrl.values());
       const enabledSources = configuredSources.filter(source => source.enabled !== false);
 
       let hasRenderedFirstBatch = false;
