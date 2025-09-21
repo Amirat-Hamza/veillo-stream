@@ -88,16 +88,26 @@ const loadSettings = () => {
       const defaults = defaultSettings.rssSources;
       const norm = (u: string) => (u || '').trim().replace(/\/+$/, '');
       const byUrl = new Map<string, NewsSource>();
+      
+      // First add stored sources
       storedSources.forEach((src: NewsSource) => {
         const key = norm(src.url);
         byUrl.set(key, { ...src, enabled: src.enabled !== false });
       });
+      
+      // Then add any missing default sources (including new Libya sources)
       defaults.forEach((src) => {
         const key = norm(src.url);
-        if (!byUrl.has(key)) byUrl.set(key, { ...src, enabled: true });
+        if (!byUrl.has(key)) {
+          byUrl.set(key, { ...src, enabled: true });
+        }
       });
+      
       const merged = { ...defaultSettings, ...parsedSettings, rssSources: Array.from(byUrl.values()) };
       setSettings(merged);
+      
+      // Save the merged settings back to localStorage to persist new sources
+      localStorage.setItem('newsVeilleSettings', JSON.stringify(merged));
     } else {
       setSettings(defaultSettings);
     }
