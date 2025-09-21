@@ -290,6 +290,8 @@ const translations: Translations = {
   'addedToSources': { en: 'has been added to your sources.', fr: 'a été ajoutée à vos sources.', ar: 'تمت إضافته إلى مصادرك.' },
   'sourceRemoved': { en: 'Source Removed', fr: 'Source supprimée', ar: 'تمت إزالة المصدر' },
   'hasBeenRemoved': { en: 'has been removed.', fr: 'a été supprimée.', ar: 'تمت إزالته.' },
+  'duplicateUrl': { en: 'Duplicate URL', fr: 'URL dupliquée', ar: 'رابط مكرر' },
+  'duplicateUrlDesc': { en: 'This URL already exists in your sources.', fr: 'Cette URL existe déjà dans vos sources.', ar: 'هذا الرابط موجود بالفعل في مصادرك.' },
 
   // General Settings
   'generalSettings': { en: 'General Settings', fr: 'Paramètres généraux', ar: 'إعدادات عامة' },

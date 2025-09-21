@@ -150,6 +150,22 @@ const resetSettings = () => {
       return;
     }
 
+    // Check for duplicate URLs
+    const normalizeUrl = (url: string) => url.trim().replace(/\/+$/, '').toLowerCase();
+    const newNormalizedUrl = normalizeUrl(newSource.url);
+    const isDuplicate = settings.rssSources.some(source => 
+      normalizeUrl(source.url) === newNormalizedUrl
+    );
+
+    if (isDuplicate) {
+      toast({
+        title: t('duplicateUrl'),
+        description: t('duplicateUrlDesc'),
+        variant: "destructive"
+      });
+      return;
+    }
+
     const source: NewsSource = {
       ...newSource,
       enabled: true,
