@@ -616,6 +616,7 @@ const resetSettings = () => {
   <SelectItem value="International">{t('international')}</SelectItem>
   <SelectItem value="Tunisia">{t('tunisia')}</SelectItem>
   <SelectItem value="Algeria">{t('algeria')}</SelectItem>
+  <SelectItem value="Libya">{t('libya')}</SelectItem>
 </SelectContent>
             </Select>
             <Button onClick={addSource} className="w-full">
@@ -675,6 +676,7 @@ const resetSettings = () => {
   <SelectItem value="International">{t('international')}</SelectItem>
   <SelectItem value="Tunisia">{t('tunisia')}</SelectItem>
   <SelectItem value="Algeria">{t('algeria')}</SelectItem>
+  <SelectItem value="Libya">{t('libya')}</SelectItem>
 </SelectContent>
                     </Select>
                     <Select

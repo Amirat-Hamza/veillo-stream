@@ -255,8 +255,12 @@ export const useNewsData = () => {
         const key = norm(src.url);
         if (!byUrl.has(key)) byUrl.set(key, { ...src, enabled: true });
       });
-      const configuredSources: NewsSource[] = Array.from(byUrl.values());
-      const enabledSources = configuredSources.filter(source => source.enabled !== false);
+const configuredSources: NewsSource[] = Array.from(byUrl.values());
+// Persist merged sources so Settings shows new defaults like Libya
+try {
+  localStorage.setItem('newsVeilleSettings', JSON.stringify({ ...settings, rssSources: configuredSources }));
+} catch {}
+const enabledSources = configuredSources.filter(source => source.enabled !== false);
 
       let hasRenderedFirstBatch = false;
 
