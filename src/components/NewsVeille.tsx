@@ -182,27 +182,8 @@ export const NewsVeille = () => {
       if (selectedSource !== 'all' && article.source !== selectedSource) {
         return false;
       }
-      if (selectedCategory !== 'all') {
-        if (selectedCategory === 'Tunisia' || selectedCategory === 'Tunisie') {
-          // Content-based filtering for Tunisia - check all available content
-          const tunisiaKeywords = ['tunisia', 'tunisie', 'tunis', 'carthage', 'sousse', 'sfax', 'kairouan', 'djerba', 'monastir', 'bizerte', 'nabeul', 'tozeur', 'gafsa', 'sidi bouzid', 'kasserine', 'tunisian', 'tunisien'];
-          const allContent = [
-            article.title,
-            article.description,
-            article.source,
-            // If there's additional content in the article object, include it
-            ...(article as any).content ? [(article as any).content] : [],
-            ...(article as any).summary ? [(article as any).summary] : [],
-            ...(article as any).text ? [(article as any).text] : []
-          ].join(' ').toLowerCase();
-          
-          const hasTunisiaContent = tunisiaKeywords.some(keyword => allContent.includes(keyword));
-          if (!hasTunisiaContent) {
-            return false;
-          }
-        } else if (article.category !== selectedCategory) {
-          return false;
-        }
+      if (selectedCategory !== 'all' && article.category !== selectedCategory) {
+        return false;
       }
       if (showUnreadOnly && article.isRead) {
         return false;
