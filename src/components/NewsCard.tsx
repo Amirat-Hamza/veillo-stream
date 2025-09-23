@@ -1,29 +1,20 @@
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { NewsArticle } from '@/types/news';
 import { format } from 'date-fns';
-import { ExternalLink, Clock, Bookmark, BookmarkCheck } from 'lucide-react';
+import { ExternalLink, Clock } from 'lucide-react';
 import { useTranslation } from '@/hooks/useTranslation';
 
 interface NewsCardProps {
   article: NewsArticle;
   onRead: (link: string) => void;
-  onSaveForLater?: () => void;
-  isInReadingList?: boolean;
 }
 
-export const NewsCard = ({ article, onRead, onSaveForLater, isInReadingList }: NewsCardProps) => {
+export const NewsCard = ({ article, onRead }: NewsCardProps) => {
   const { t } = useTranslation();
-  
   const handleClick = () => {
     onRead(article.link);
     window.open(article.link, '_blank');
-  };
-
-  const handleSaveForLater = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    onSaveForLater?.();
   };
 
   return (
@@ -36,32 +27,15 @@ export const NewsCard = ({ article, onRead, onSaveForLater, isInReadingList }: N
       onClick={handleClick}
     >
       <CardHeader className="pb-4 space-y-4">
-        {/* Header with title and action buttons */}
+        {/* Header with title and external link */}
         <div className="flex items-start justify-between gap-4">
           <h3 className={`font-bold text-xl leading-tight line-clamp-2 transition-colors group-hover:text-primary ${
             article.isRead ? 'text-muted-foreground' : 'text-card-foreground'
           }`}>
             {article.title}
           </h3>
-          <div className="flex-shrink-0 flex gap-1">
-            {onSaveForLater && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-8 w-8 p-0 transition-colors hover:bg-primary/10"
-                onClick={handleSaveForLater}
-                title={isInReadingList ? "Remove from reading list" : "Save for later"}
-              >
-                {isInReadingList ? (
-                  <BookmarkCheck className="w-4 h-4 text-primary" />
-                ) : (
-                  <Bookmark className="w-4 h-4 text-muted-foreground hover:text-primary" />
-                )}
-              </Button>
-            )}
-            <div className="p-1 rounded-full bg-accent/50 transition-colors group-hover:bg-primary/10">
-              <ExternalLink className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
-            </div>
+          <div className="flex-shrink-0 p-1 rounded-full bg-accent/50 transition-colors group-hover:bg-primary/10">
+            <ExternalLink className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors" />
           </div>
         </div>
         

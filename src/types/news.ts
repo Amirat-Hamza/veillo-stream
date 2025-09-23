@@ -15,7 +15,6 @@ export interface NewsSource {
   category: string;
   enabled?: boolean;
   interval?: number;
-  priority?: boolean; // VIP sources appear at top
 }
 
 export interface ReadingStats {
@@ -24,27 +23,4 @@ export interface ReadingStats {
   thisYear: number;
   bySource: Record<string, number>;
   byDay: Record<string, number>;
-}
-
-export interface Collection {
-  id: string;
-  name: string;
-  description?: string;
-  sources: string[]; // source names
-  categories: string[];
-  keywords: string[];
-  color?: string;
-  icon?: string;
-}
-
-export interface ReadingListItem {
-  id: string;
-  articleId: string;
-  title: string;
-  link: string;
-  source: string;
-  addedAt: string;
-  dueDate?: string;
-  priority: 'low' | 'medium' | 'high';
-  notes?: string;
 }

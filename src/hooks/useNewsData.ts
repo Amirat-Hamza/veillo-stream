@@ -50,22 +50,15 @@ export const useNewsData = () => {
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
-  const parseRSSFeed = async (source: NewsSource, retryCount = 0): Promise<NewsArticle[]> => {
-    console.log(`Attempting to fetch ${source.name} from ${source.url} (attempt ${retryCount + 1})`);
+  const parseRSSFeed = async (source: NewsSource): Promise<NewsArticle[]> => {
+    console.log(`Attempting to fetch ${source.name} from ${source.url}`);
     
     const u = new URL(source.url);
     const host = u.hostname.replace(/^www\./, '');
     const isCFWordPress = ['echoroukonline.com', 'ennaharonline.com'].includes(host);
-    
-    // Enhanced proxy selection with better fallbacks
-    let proxies = isCFWordPress
+    const proxies = isCFWordPress
       ? ['https://api.rss2json.com/v1/api.json?rss_url=', ...CORS_PROXIES.filter(p => !p.includes('rss2json.com'))]
       : CORS_PROXIES;
-    
-    // Shuffle proxies for better load distribution on retries
-    if (retryCount > 0) {
-      proxies = [...proxies].sort(() => Math.random() - 0.5);
-    }
     
     // Build alternative URL candidates for problematic sources (e.g., Tunisienumerique)
     const urlCandidates: string[] = [source.url];
@@ -240,15 +233,6 @@ export const useNewsData = () => {
         }
       }
     }
-    
-    // Enhanced error recovery - try alternative URLs and retry mechanism
-    if (retryCount < 2) {
-      console.log(`All proxies failed for ${source.name}, attempting retry ${retryCount + 1}/2`);
-      await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1))); // Progressive delay
-      return parseRSSFeed(source, retryCount + 1);
-    }
-    
-    console.warn(`Failed to fetch ${source.name} after all attempts`);
     return [];
   };
 
@@ -276,14 +260,7 @@ const configuredSources: NewsSource[] = Array.from(byUrl.values());
 try {
   localStorage.setItem('newsVeilleSettings', JSON.stringify({ ...settings, rssSources: configuredSources }));
 } catch {}
-      const enabledSources = configuredSources
-        .filter(source => source.enabled !== false)
-        .sort((a, b) => {
-          // Priority sources first
-          if (a.priority && !b.priority) return -1;
-          if (!a.priority && b.priority) return 1;
-          return 0;
-        });
+const enabledSources = configuredSources.filter(source => source.enabled !== false);
 
       let hasRenderedFirstBatch = false;
 
@@ -318,24 +295,14 @@ try {
       console.log(`Progressively fetching from ${enabledSources.length} sources`);
 
       for (const source of enabledSources) {
-        console.log(`→ Source: ${source.name}${source.priority ? ' (Priority)' : ''}`);
+        console.log(`→ Source: ${source.name}`);
         // 1) Fetch the main feed first (do not abort pagination if this fails)
         let initial: NewsArticle[] = [];
         try {
           initial = await parseRSSFeed(source);
           console.log(`${source.name}: initial batch size ${initial.length}`);
-          
-          // Enhanced success reporting for priority sources
-          if (source.priority && initial.length > 0) {
-            console.log(`✓ Priority source ${source.name} fetched successfully`);
-          }
         } catch (e) {
           console.warn(`${source.name}: initial fetch failed`, e);
-          
-          // Enhanced error reporting for priority sources
-          if (source.priority) {
-            console.error(`⚠️ Priority source ${source.name} failed - this may impact content quality`);
-          }
         }
         appendArticles(initial); // keep duplicates
 

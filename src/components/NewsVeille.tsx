@@ -4,20 +4,12 @@ import { Dashboard } from './Dashboard';
 import { SearchAndFilters } from './SearchAndFilters';
 import { Header } from './Header';
 import { Settings } from './Settings';
-import { CollectionManager } from './CollectionManager';
-import { ReadingList } from './ReadingList';
 import { useNewsData } from '@/hooks/useNewsData';
-import { useCollections } from '@/hooks/useCollections';
-import { useReadingList } from '@/hooks/useReadingList';
-import { useAICategorization } from '@/hooks/useAICategorization';
 import { useToast } from '@/hooks/use-toast';
 import { ThemeProvider } from 'next-themes';
 import { useTranslation } from '@/hooks/useTranslation';
-import { NewsArticle } from '@/types/news';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export const NewsVeille = () => {
-  const [activeTab, setActiveTab] = useState('news');
   const [showDashboard, setShowDashboard] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -28,7 +20,6 @@ export const NewsVeille = () => {
   const [availableSources, setAvailableSources] = useState<string[]>([]);
   const [lastNotificationTime, setLastNotificationTime] = useState<number>(0);
   const [previousArticleCount, setPreviousArticleCount] = useState<number>(0);
-  const [selectedArticleForReading, setSelectedArticleForReading] = useState<NewsArticle | null>(null);
 
   useEffect(() => {
     const s = JSON.parse(localStorage.getItem('newsVeilleSettings') || '{}');
@@ -43,23 +34,6 @@ export const NewsVeille = () => {
   }, []);
   
   const { articles, loading, lastUpdate, markAsRead, refreshNews, getReadingStats } = useNewsData();
-  const { 
-    collections, 
-    selectedCollection, 
-    setSelectedCollection, 
-    createCollection, 
-    updateCollection, 
-    deleteCollection, 
-    filterArticlesByCollection 
-  } = useCollections();
-  const { 
-    readingList, 
-    addToReadingList, 
-    updateReadingListItem, 
-    removeFromReadingList, 
-    isInReadingList 
-  } = useReadingList();
-  const { enhanceArticlesWithAI } = useAICategorization();
   const { toast } = useToast();
   const { t } = useTranslation();
 
@@ -200,12 +174,7 @@ export const NewsVeille = () => {
   const filteredArticles = useMemo(() => {
     const now = Date.now();
     const threshold = now - timeRange * 60 * 60 * 1000;
-    
-    // First apply AI categorization and collection filtering
-    let processedArticles = enhanceArticlesWithAI(articles);
-    processedArticles = filterArticlesByCollection(processedArticles, selectedCollection);
-    
-    return processedArticles.filter(article => {
+    return articles.filter(article => {
       if (searchTerm && !article.title.toLowerCase().includes(searchTerm.toLowerCase()) && 
           !article.description.toLowerCase().includes(searchTerm.toLowerCase())) {
         return false;
@@ -226,15 +195,14 @@ export const NewsVeille = () => {
       }
       return true;
     });
-  }, [articles, searchTerm, selectedSource, selectedCategory, showUnreadOnly, timeRange, enhanceArticlesWithAI, filterArticlesByCollection, selectedCollection]);
+  }, [articles, searchTerm, selectedSource, selectedCategory, showUnreadOnly, timeRange]);
 
 
   const categories = useMemo(() => {
-    const enhancedArticles = enhanceArticlesWithAI(articles);
-    const set = new Set(enhancedArticles.map(a => a.category).filter(Boolean));
-    ['International','Algeria','Tunisia','Libya','Technology','Politics','Economy','Health','Sports','Education','Environment','Culture','Science','Security'].forEach(c => set.add(c));
+    const set = new Set(articles.map(a => a.category).filter(Boolean));
+    ['International','Algeria','Tunisia','Libya'].forEach(c => set.add(c));
     return Array.from(set).sort();
-  }, [articles, enhanceArticlesWithAI]);
+  }, [articles]);
 
   const unreadCount = articles.filter(a => !a.isRead).length;
   const stats = getReadingStats();
@@ -260,94 +228,57 @@ export const NewsVeille = () => {
           ) : showDashboard ? (
             <Dashboard stats={stats} />
           ) : (
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="news">News Feed</TabsTrigger>
-                <TabsTrigger value="collections">Collections</TabsTrigger>
-                <TabsTrigger value="reading-list">Reading List ({readingList.length})</TabsTrigger>
-              </TabsList>
+            <div className="space-y-6">
+              <SearchAndFilters
+                searchTerm={searchTerm}
+                onSearchChange={setSearchTerm}
+                selectedSource={selectedSource}
+                onSourceChange={setSelectedSource}
+                selectedCategory={selectedCategory}
+                onCategoryChange={setSelectedCategory}
+                showUnreadOnly={showUnreadOnly}
+                onUnreadOnlyChange={setShowUnreadOnly}
+                timeRange={timeRange}
+                onTimeRangeChange={(hours) => {
+                  setTimeRange(hours);
+                  const settings = JSON.parse(localStorage.getItem('newsVeilleSettings') || '{}');
+                  settings.timeRange = hours;
+                  localStorage.setItem('newsVeilleSettings', JSON.stringify(settings));
+                  refreshNews(true);
+                }}
+                sources={availableSources}
+                categories={categories}
+                filteredArticles={filteredArticles}
+              />
 
-              <TabsContent value="news" className="space-y-6">
-                <SearchAndFilters
-                  searchTerm={searchTerm}
-                  onSearchChange={setSearchTerm}
-                  selectedSource={selectedSource}
-                  onSourceChange={setSelectedSource}
-                  selectedCategory={selectedCategory}
-                  onCategoryChange={setSelectedCategory}
-                  showUnreadOnly={showUnreadOnly}
-                  onUnreadOnlyChange={setShowUnreadOnly}
-                  timeRange={timeRange}
-                  onTimeRangeChange={(hours) => {
-                    setTimeRange(hours);
-                    const settings = JSON.parse(localStorage.getItem('newsVeilleSettings') || '{}');
-                    settings.timeRange = hours;
-                    localStorage.setItem('newsVeilleSettings', JSON.stringify(settings));
-                    refreshNews(true);
-                  }}
-                  sources={availableSources}
-                  categories={categories}
-                  filteredArticles={filteredArticles}
-                />
-
-                {loading && articles.length === 0 ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="text-center space-y-4">
-                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-                      <p className="text-muted-foreground">{t('loadingArticles')}</p>
-                    </div>
+              {loading && articles.length === 0 ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center space-y-4">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+                    <p className="text-muted-foreground">{t('loadingArticles')}</p>
                   </div>
-                ) : filteredArticles.length === 0 ? (
-                  <div className="text-center py-12">
-                    <p className="text-muted-foreground text-lg">
-                      {searchTerm || selectedSource !== 'all' || selectedCategory !== 'all' || showUnreadOnly || selectedCollection
-                        ? t('noArticlesMatchFilters')
-                        : t('noArticlesAvailableYet')
-                      }
-                    </p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredArticles.map(article => (
-                      <NewsCard
-                        key={article.id}
-                        article={article}
-                        onRead={handleArticleRead}
-                        onSaveForLater={() => setSelectedArticleForReading(article)}
-                        isInReadingList={isInReadingList(article.id)}
-                      />
-                    ))}
-                  </div>
-                )}
-              </TabsContent>
-
-              <TabsContent value="collections">
-                <CollectionManager
-                  collections={collections}
-                  sources={availableSources}
-                  categories={categories}
-                  onCollectionCreate={createCollection}
-                  onCollectionUpdate={updateCollection}
-                  onCollectionDelete={deleteCollection}
-                  selectedCollection={selectedCollection}
-                  onCollectionSelect={(id) => {
-                    setSelectedCollection(id);
-                    setActiveTab('news'); // Switch back to news feed to see filtered results
-                  }}
-                />
-              </TabsContent>
-
-              <TabsContent value="reading-list">
-                <ReadingList
-                  readingList={readingList}
-                  onAddToReadingList={addToReadingList}
-                  onUpdateReadingListItem={updateReadingListItem}
-                  onRemoveFromReadingList={removeFromReadingList}
-                  selectedArticle={selectedArticleForReading}
-                  onClose={() => setSelectedArticleForReading(null)}
-                />
-              </TabsContent>
-            </Tabs>
+                </div>
+              ) : filteredArticles.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground text-lg">
+                    {searchTerm || selectedSource !== 'all' || selectedCategory !== 'all' || showUnreadOnly
+                      ? t('noArticlesMatchFilters')
+                      : t('noArticlesAvailableYet')
+                    }
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredArticles.map(article => (
+                    <NewsCard
+                      key={article.id}
+                      article={article}
+                      onRead={handleArticleRead}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </main>
       </div>
