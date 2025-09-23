@@ -182,8 +182,18 @@ export const NewsVeille = () => {
       if (selectedSource !== 'all' && article.source !== selectedSource) {
         return false;
       }
-      if (selectedCategory !== 'all' && article.category !== selectedCategory) {
-        return false;
+      if (selectedCategory !== 'all') {
+        if (selectedCategory === 'Tunisia' || selectedCategory === 'Tunisie') {
+          // Content-based filtering for Tunisia
+          const tunisiaKeywords = ['tunisia', 'tunisie', 'tunis', 'carthage', 'sousse', 'sfax', 'kairouan', 'djerba', 'monastir', 'bizerte', 'nabeul', 'tozeur', 'gafsa', 'sidi bouzid', 'kasserine'];
+          const content = (article.title + ' ' + article.description).toLowerCase();
+          const hasTunisiaContent = tunisiaKeywords.some(keyword => content.includes(keyword));
+          if (!hasTunisiaContent) {
+            return false;
+          }
+        } else if (article.category !== selectedCategory) {
+          return false;
+        }
       }
       if (showUnreadOnly && article.isRead) {
         return false;
