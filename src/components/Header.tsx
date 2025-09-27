@@ -1,7 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useTheme } from 'next-themes';
-import { RefreshCw, Sun, Moon, Download, BarChart3, Settings, Languages } from 'lucide-react';
+import { RefreshCw, Sun, Moon, Download, BarChart3, Settings } from 'lucide-react';
 import { format } from 'date-fns';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useNavigate } from 'react-router-dom';
@@ -101,15 +101,6 @@ export const Header = ({
               <span className="hidden sm:inline">{t('export') || 'Export'}</span>
             </Button>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate('/translation')}
-              className="gap-2"
-            >
-              <Languages className="h-4 w-4" />
-              <span className="hidden sm:inline">Translation</span>
-            </Button>
 
             <Button
               variant="outline"
