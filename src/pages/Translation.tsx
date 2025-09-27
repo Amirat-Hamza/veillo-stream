@@ -13,7 +13,9 @@ const Translation = () => {
   const [sourceText, setSourceText] = useState('');
   const [translatedText, setTranslatedText] = useState('');
   const [targetLanguage, setTargetLanguage] = useState('');
+  const [detectedLanguage, setDetectedLanguage] = useState('');
   const [isTranslating, setIsTranslating] = useState(false);
+  const [isDetecting, setIsDetecting] = useState(false);
   const [copied, setCopied] = useState(false);
   const [openaiConfig, setOpenaiConfig] = useState<any>(null);
   const { toast } = useToast();
@@ -59,6 +61,48 @@ const Translation = () => {
     loadApiKey();
   }, []);
 
+  const detectLanguage = async (text: string) => {
+    if (!openaiConfig?.apiKey || !text.trim()) return '';
+
+    setIsDetecting(true);
+    try {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${openaiConfig.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: openaiConfig.selectedModel || 'gpt-3.5-turbo',
+          messages: [
+            {
+              role: 'system',
+              content: 'Detect the language of the given text and return only the language name in English (e.g., "Spanish", "French", "German", etc.). Do not include any other text or explanation.'
+            },
+            {
+              role: 'user',
+              content: text
+            }
+          ],
+          temperature: 0.1,
+          max_tokens: 20
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const detected = data.choices[0].message.content.trim();
+        setDetectedLanguage(detected);
+        return detected;
+      }
+    } catch (error) {
+      console.error('Language detection error:', error);
+    } finally {
+      setIsDetecting(false);
+    }
+    return '';
+  };
+
   const translateText = async () => {
     if (!openaiConfig?.apiKey) {
       toast({
@@ -89,6 +133,11 @@ const Translation = () => {
 
     setIsTranslating(true);
 
+    // Auto-detect language if not already detected
+    if (!detectedLanguage) {
+      await detectLanguage(sourceText);
+    }
+
     try {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -101,7 +150,7 @@ const Translation = () => {
           messages: [
             {
               role: 'system',
-              content: `You are a professional translator. Translate the given text to ${languages.find(l => l.code === targetLanguage)?.name}. Only return the translated text, nothing else.`
+              content: `You are a professional translator. Translate the given text from ${detectedLanguage || 'the detected language'} to ${languages.find(l => l.code === targetLanguage)?.name}. Only return the translated text, nothing else.`
             },
             {
               role: 'user',
@@ -190,9 +239,34 @@ const Translation = () => {
               <Textarea
                 placeholder="Enter the text you want to translate..."
                 value={sourceText}
-                onChange={(e) => setSourceText(e.target.value)}
+                onChange={(e) => {
+                  setSourceText(e.target.value);
+                  setDetectedLanguage('');
+                  setTranslatedText('');
+                }}
+                onBlur={() => {
+                  if (sourceText.trim() && openaiConfig?.apiKey) {
+                    detectLanguage(sourceText);
+                  }
+                }}
                 className="min-h-[300px]"
               />
+              
+              {detectedLanguage && (
+                <div className="text-sm text-muted-foreground">
+                  {isDetecting ? (
+                    <div className="flex items-center">
+                      <Loader2 className="mr-2 h-3 w-3 animate-spin" />
+                      Detecting language...
+                    </div>
+                  ) : (
+                    <div className="flex items-center">
+                      <Check className="mr-2 h-3 w-3 text-green-500" />
+                      Detected language: <strong className="ml-1">{detectedLanguage}</strong>
+                    </div>
+                  )}
+                </div>
+              )}
               
               <div className="space-y-2">
                 <Label htmlFor="targetLanguage">Target Language</Label>
