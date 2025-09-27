@@ -62,8 +62,12 @@ const Translation = () => {
   }, []);
 
   const detectLanguage = async (text: string) => {
-    if (!openaiConfig?.apiKey || !text.trim()) return '';
+    if (!openaiConfig?.apiKey || !text.trim()) {
+      console.log('Language detection skipped:', { hasApiKey: !!openaiConfig?.apiKey, hasText: !!text.trim() });
+      return '';
+    }
 
+    console.log('Starting language detection for:', text.substring(0, 50) + '...');
     setIsDetecting(true);
     try {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -92,8 +96,11 @@ const Translation = () => {
       if (response.ok) {
         const data = await response.json();
         const detected = data.choices[0].message.content.trim();
+        console.log('Language detected:', detected);
         setDetectedLanguage(detected);
         return detected;
+      } else {
+        console.error('Language detection API error:', response.status, response.statusText);
       }
     } catch (error) {
       console.error('Language detection error:', error);
@@ -104,6 +111,13 @@ const Translation = () => {
   };
 
   const translateText = async () => {
+    console.log('Translation started', { 
+      hasApiKey: !!openaiConfig?.apiKey, 
+      hasSourceText: !!sourceText.trim(), 
+      hasTargetLanguage: !!targetLanguage,
+      detectedLanguage 
+    });
+
     if (!openaiConfig?.apiKey) {
       toast({
         title: "API Key Required",
