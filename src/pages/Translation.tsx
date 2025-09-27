@@ -12,7 +12,7 @@ import { useNavigate } from 'react-router-dom';
 const Translation = () => {
   const [sourceText, setSourceText] = useState('');
   const [translatedText, setTranslatedText] = useState('');
-  const [targetLanguage, setTargetLanguage] = useState('');
+  const [targetLanguage, setTargetLanguage] = useState('en');
   const [detectedLanguage, setDetectedLanguage] = useState('');
   const [isTranslating, setIsTranslating] = useState(false);
   const [isDetecting, setIsDetecting] = useState(false);
@@ -61,6 +61,29 @@ const Translation = () => {
     loadApiKey();
   }, []);
 
+  // SEO metadata for this page
+  useEffect(() => {
+    document.title = 'AI Translation - Auto Language Detection';
+    const ensureMeta = (name: string, content: string) => {
+      let m = document.querySelector(`meta[name="${name}"]`) as HTMLMetaElement | null;
+      if (!m) {
+        m = document.createElement('meta');
+        m.setAttribute('name', name);
+        document.head.appendChild(m);
+      }
+      m.setAttribute('content', content);
+    };
+    ensureMeta('description', 'AI translation with automatic language detection using OpenAI.');
+
+    let canonical = document.querySelector('link[rel="canonical"]') as HTMLLinkElement | null;
+    if (!canonical) {
+      canonical = document.createElement('link');
+      canonical.setAttribute('rel', 'canonical');
+      document.head.appendChild(canonical);
+    }
+    canonical.setAttribute('href', window.location.href);
+  }, []);
+
   const detectLanguage = async (text: string) => {
     if (!openaiConfig?.apiKey || !text.trim()) {
       console.log('Language detection skipped:', { hasApiKey: !!openaiConfig?.apiKey, hasText: !!text.trim() });
@@ -77,7 +100,7 @@ const Translation = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: openaiConfig.selectedModel || 'gpt-3.5-turbo',
+          model: openaiConfig.selectedModel || 'gpt-4o-mini',
           messages: [
             {
               role: 'system',
@@ -109,6 +132,14 @@ const Translation = () => {
     }
     return '';
   };
+
+  useEffect(() => {
+    if (!sourceText.trim() || !openaiConfig?.apiKey) return;
+    const id = setTimeout(() => {
+      detectLanguage(sourceText);
+    }, 600);
+    return () => clearTimeout(id);
+  }, [sourceText, openaiConfig?.apiKey]);
 
   const translateText = async () => {
     console.log('Translation started', { 
@@ -160,7 +191,7 @@ const Translation = () => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: openaiConfig.selectedModel || 'gpt-3.5-turbo',
+          model: openaiConfig.selectedModel || 'gpt-4o-mini',
           messages: [
             {
               role: 'system',
@@ -266,7 +297,7 @@ const Translation = () => {
                 className="min-h-[300px]"
               />
               
-              {detectedLanguage && (
+              {(isDetecting || detectedLanguage) && (
                 <div className="text-sm text-muted-foreground">
                   {isDetecting ? (
                     <div className="flex items-center">
@@ -275,7 +306,7 @@ const Translation = () => {
                     </div>
                   ) : (
                     <div className="flex items-center">
-                      <Check className="mr-2 h-3 w-3 text-green-500" />
+                      <Check className="mr-2 h-3 w-3" />
                       Detected language: <strong className="ml-1">{detectedLanguage}</strong>
                     </div>
                   )}
