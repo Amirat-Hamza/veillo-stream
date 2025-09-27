@@ -1,9 +1,10 @@
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useTheme } from 'next-themes';
-import { RefreshCw, Sun, Moon, Download, BarChart3, Settings } from 'lucide-react';
+import { RefreshCw, Sun, Moon, Download, BarChart3, Settings, Languages } from 'lucide-react';
 import { format } from 'date-fns';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useNavigate } from 'react-router-dom';
 
 interface HeaderProps {
   lastUpdate: Date | null;
@@ -30,6 +31,7 @@ export const Header = ({
 }: HeaderProps) => {
   const { theme, setTheme } = useTheme();
   const { t, isRTL } = useTranslation();
+  const navigate = useNavigate();
 
   return (
     <header className={`sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b ${isRTL ? 'dir-rtl' : ''}`}>
@@ -97,6 +99,16 @@ export const Header = ({
             >
               <Download className="h-4 w-4" />
               <span className="hidden sm:inline">{t('export') || 'Export'}</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate('/translation')}
+              className="gap-2"
+            >
+              <Languages className="h-4 w-4" />
+              <span className="hidden sm:inline">Translation</span>
             </Button>
 
             <Button
