@@ -1,21 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Copy, Check } from 'lucide-react';
+import { Loader2, Copy, Check, Settings, ExternalLink } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { useNavigate } from 'react-router-dom';
 
 const Translation = () => {
-  const [apiKey, setApiKey] = useState('');
   const [sourceText, setSourceText] = useState('');
   const [translatedText, setTranslatedText] = useState('');
   const [targetLanguage, setTargetLanguage] = useState('');
   const [isTranslating, setIsTranslating] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [openaiConfig, setOpenaiConfig] = useState<any>(null);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   const languages = [
     { code: 'es', name: 'Spanish' },
@@ -35,11 +37,33 @@ const Translation = () => {
     { code: 'no', name: 'Norwegian' }
   ];
 
+  useEffect(() => {
+    // Load OpenAI API key from settings
+    const loadApiKey = () => {
+      try {
+        const settings = JSON.parse(localStorage.getItem('newsVeilleSettings') || '{}');
+        const apiKeyConfigs = settings.apiKeyConfigs || [];
+        const activeConfigId = settings.activeApiKeyId;
+        
+        // Find active OpenAI config or first OpenAI config
+        let openaiKey = apiKeyConfigs.find((config: any) => 
+          config.id === activeConfigId && config.provider === 'openai'
+        ) || apiKeyConfigs.find((config: any) => config.provider === 'openai');
+        
+        setOpenaiConfig(openaiKey);
+      } catch (error) {
+        console.error('Failed to load API key from settings:', error);
+      }
+    };
+
+    loadApiKey();
+  }, []);
+
   const translateText = async () => {
-    if (!apiKey.trim()) {
+    if (!openaiConfig?.apiKey) {
       toast({
         title: "API Key Required",
-        description: "Please enter your OpenAI API key",
+        description: "Please configure your OpenAI API key in settings first",
         variant: "destructive"
       });
       return;
@@ -69,11 +93,11 @@ const Translation = () => {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${apiKey}`,
+          'Authorization': `Bearer ${openaiConfig.apiKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'gpt-3.5-turbo',
+          model: openaiConfig.selectedModel || 'gpt-3.5-turbo',
           messages: [
             {
               role: 'system',
@@ -104,7 +128,7 @@ const Translation = () => {
       console.error('Translation error:', error);
       toast({
         title: "Translation Failed",
-        description: "Failed to translate text. Please check your API key and try again.",
+        description: "Failed to translate text. Please check your API key configuration in settings.",
         variant: "destructive"
       });
     } finally {
@@ -132,26 +156,30 @@ const Translation = () => {
           <p className="text-muted-foreground">Translate any text using ChatGPT AI</p>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>API Configuration</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <Label htmlFor="apiKey">OpenAI API Key</Label>
-              <Input
-                id="apiKey"
-                type="password"
-                placeholder="Enter your OpenAI API key (sk-...)"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-              />
-              <p className="text-sm text-muted-foreground">
-                Your API key is only stored temporarily and not saved anywhere.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+        {!openaiConfig ? (
+          <Alert className="mb-6">
+            <Settings className="h-4 w-4" />
+            <AlertDescription className="flex items-center justify-between">
+              <span>No OpenAI API key configured. Please add one in settings first.</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/')}
+                className="ml-2"
+              >
+                <Settings className="h-4 w-4 mr-1" />
+                Go to Settings
+              </Button>
+            </AlertDescription>
+          </Alert>
+        ) : (
+          <Alert className="mb-6">
+            <Check className="h-4 w-4" />
+            <AlertDescription>
+              Using API key: <strong>{openaiConfig.name}</strong> ({openaiConfig.selectedModel || 'gpt-3.5-turbo'})
+            </AlertDescription>
+          </Alert>
+        )}
 
         <div className="grid md:grid-cols-2 gap-6">
           <Card>
@@ -184,7 +212,7 @@ const Translation = () => {
 
               <Button 
                 onClick={translateText} 
-                disabled={isTranslating}
+                disabled={isTranslating || !openaiConfig}
                 className="w-full"
               >
                 {isTranslating ? (
