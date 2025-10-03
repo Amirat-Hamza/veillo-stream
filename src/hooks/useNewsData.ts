@@ -56,10 +56,29 @@ export const useNewsData = () => {
     
     const u = new URL(source.url);
     const host = u.hostname.replace(/^www\./, '');
+
+    // Prefer reliable proxies for Cloudflare/WordPress feeds (avoid those failing with SSL 526)
     const isCFWordPress = ['echoroukonline.com', 'ennaharonline.com', 'defense.tn'].includes(host);
-    const proxies = isCFWordPress
-      ? ['https://api.rss2json.com/v1/api.json?rss_url=', ...CORS_PROXIES.filter(p => !p.includes('rss2json.com'))]
-      : CORS_PROXIES;
+
+    let proxies: string[];
+    if (host === 'defense.tn') {
+      // rss2json may rate limit; try r.jina.ai immediately after, then stable raw wrappers
+      proxies = [
+        'https://api.rss2json.com/v1/api.json?rss_url=',
+        'https://r.jina.ai/',
+        'https://api.allorigins.win/raw?url=',
+        'https://api.allorigins.win/get?url=',
+        'https://cors.isomorphic-git.org/',
+      ];
+    } else if (isCFWordPress) {
+      proxies = [
+        'https://api.rss2json.com/v1/api.json?rss_url=',
+        'https://r.jina.ai/',
+        ...CORS_PROXIES.filter(p => !p.includes('rss2json.com') && !p.includes('r.jina.ai')),
+      ];
+    } else {
+      proxies = CORS_PROXIES;
+    }
     
     // Build alternative URL candidates for problematic sources (e.g., Tunisienumerique)
     const urlCandidates: string[] = [source.url];
