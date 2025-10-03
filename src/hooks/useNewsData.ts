@@ -6,6 +6,7 @@ const NEWS_SOURCES: NewsSource[] = [
   { name: 'Al Jazeera', url: 'https://www.aljazeera.com/xml/rss/all.xml', category: 'International' },
   { name: 'Echorouk Online', url: 'https://www.echoroukonline.com/feed/', category: 'Algeria' },
   { name: 'Ennahar Online', url: 'https://www.ennaharonline.com/feed/', category: 'Algeria' },
+  { name: 'Defense.tn', url: 'https://defense.tn/feed/', category: 'Tunisia' },
   { name: 'TAP', url: 'https://www.tap.info.tn/rss', category: 'Tunisia' },
   { name: 'Mosaique FM', url: 'https://www.mosaiquefm.net/rss', category: 'Tunisia' },
   { name: 'Libya Observer', url: 'https://www.libyaobserver.ly/feed', category: 'Libya' },
@@ -26,7 +27,7 @@ const CORS_PROXIES = [
 
 
 // Add reasonable timeouts and pagination caps to avoid long hangs
-const REQUEST_TIMEOUT_MS = 10000; // 10s per attempt
+const REQUEST_TIMEOUT_MS = 15000; // 15s per attempt
 const MAX_PAGES_PER_SOURCE = Infinity; // unlimited pagination; will stop when no new items are found
 const DAYS_TO_FETCH = 4; // Only fetch articles from the last 4 days
 
