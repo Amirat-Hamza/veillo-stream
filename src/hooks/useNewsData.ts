@@ -56,7 +56,7 @@ export const useNewsData = () => {
     
     const u = new URL(source.url);
     const host = u.hostname.replace(/^www\./, '');
-    const isCFWordPress = ['echoroukonline.com', 'ennaharonline.com'].includes(host);
+    const isCFWordPress = ['echoroukonline.com', 'ennaharonline.com', 'defense.tn'].includes(host);
     const proxies = isCFWordPress
       ? ['https://api.rss2json.com/v1/api.json?rss_url=', ...CORS_PROXIES.filter(p => !p.includes('rss2json.com'))]
       : CORS_PROXIES;
